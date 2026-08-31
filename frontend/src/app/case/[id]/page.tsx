@@ -29,6 +29,9 @@ export default function CaseDetails() {
   const [expandedImgs, setExpandedImgs] = useState<Record<number, boolean>>({});
   const [expandedAI, setExpandedAI] = useState<Record<number, boolean>>({});
   const [versionImages, setVersionImages] = useState<Record<number, any[]>>({});
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ checks: any[] } | null>(null);
+
 
   const canUpload = currentUser?.role === 'Officer';
   const canSeal   = currentUser?.role === 'Judge';
@@ -95,16 +98,17 @@ export default function CaseDetails() {
   };
 
   const handleVerify = async (document_id: number) => {
+    setIsVerifying(true);
+    setVerifyResult(null);
     try {
       const res  = await fetch(`${API}/documents/${document_id}/verify/`, { headers: getHeaders() });
       const data = await res.json();
-      let msg = 'CRYPTOGRAPHIC INTEGRITY CHECK\n' + '─'.repeat(40) + '\n\n';
-      data.integrity_checks.forEach((c: any) => {
-        const icon = c.status === 'VERIFIED' ? '✅' : c.status === 'TAMPERED' ? '🚨' : c.status === 'MISSING' ? '❌' : '⚠️';
-        msg += `${icon}  Version ${c.version}: [${c.status}]\n    ${c.message}\n\n`;
-      });
-      alert(msg);
-    } catch { alert('Error contacting server.'); }
+      setVerifyResult({ checks: data.integrity_checks });
+    } catch {
+      setVerifyResult({ checks: [{ version: '—', status: 'ERROR', message: 'Could not contact the server. Please ensure the backend is running.' }] });
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleSeal = async () => {
@@ -693,6 +697,102 @@ export default function CaseDetails() {
             </p>
             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-6 overflow-hidden">
               <div className="bg-blue-600 h-1.5 rounded-full animate-pulse w-full"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── VERIFYING INTEGRITY LOADING OVERLAY ── */}
+      {isVerifying && (
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-green-600">
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <RefreshCw className="w-16 h-16 text-green-500 animate-spin opacity-20" />
+              <ShieldCheck className="w-8 h-8 text-green-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Verifying Integrity</h3>
+            <p className="text-sm text-slate-500 font-medium">
+              Recomputing cryptographic hash...<br/>
+              Querying Polygon Blockchain...
+            </p>
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-6 overflow-hidden">
+              <div className="bg-green-500 h-1.5 rounded-full animate-pulse w-full"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── VERIFY RESULTS MODAL ── */}
+      {verifyResult && (
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-blur-sm" onClick={() => setVerifyResult(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border-t-4 border-green-600 overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="bg-slate-800 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-green-400" />
+                <h3 className="text-white font-black tracking-wide text-sm uppercase">Cryptographic Integrity Report</h3>
+              </div>
+              <button onClick={() => setVerifyResult(null)} className="text-slate-400 hover:text-white transition-colors text-xl font-bold leading-none">×</button>
+            </div>
+
+            {/* Version Results */}
+            <div className="p-5 space-y-3 max-h-96 overflow-y-auto">
+              {verifyResult.checks.map((c: any, i: number) => {
+                const isVerified      = c.status === 'VERIFIED';
+                const isLocalVerified = c.status === 'VERIFIED_LOCAL';
+                const isTampered      = c.status === 'TAMPERED';
+                const isMissing       = c.status === 'MISSING';
+                return (
+                  <div key={i} className={`rounded-xl border-2 p-4 ${
+                    isVerified       ? 'border-green-300 bg-green-50' :
+                    isLocalVerified  ? 'border-blue-200 bg-blue-50' :
+                    isTampered       ? 'border-red-400 bg-red-50' :
+                    isMissing        ? 'border-orange-300 bg-orange-50' :
+                                       'border-slate-200 bg-slate-50'
+                  }`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        isVerified       ? 'bg-green-500' :
+                        isLocalVerified  ? 'bg-blue-500' :
+                        isTampered       ? 'bg-red-500' :
+                        isMissing        ? 'bg-orange-500' : 'bg-slate-400'
+                      }`}>
+                        {isVerified      && <CheckCircle2 className="w-5 h-5 text-white" />}
+                        {isLocalVerified && <ShieldCheck className="w-5 h-5 text-white" />}
+                        {isTampered      && <AlertTriangle className="w-5 h-5 text-white" />}
+                        {isMissing       && <FileLock2 className="w-5 h-5 text-white" />}
+                        {!isVerified && !isLocalVerified && !isTampered && !isMissing && <Shield className="w-5 h-5 text-white" />}
+                      </div>
+                      <div>
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Version {c.version}</span>
+                        <div className={`text-sm font-black ${
+                          isVerified ? 'text-green-700' : isLocalVerified ? 'text-blue-700' : isTampered ? 'text-red-700' : 'text-orange-700'
+                        }`}>{c.status}</div>
+                      </div>
+                    </div>
+                    <p className={`text-xs leading-relaxed ${isTampered ? 'text-red-700 font-semibold' : 'text-slate-600'}`}>{c.message}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 pb-5 pt-3 flex gap-3 border-t border-slate-100">
+              {verifyResult.checks.some((c: any) => c.status === 'VERIFIED') && (
+                <button
+                  onClick={() => window.open('https://amoy.polygonscan.com/address/0x8784D3f0161a3bA1941942748041583b22CE286E', '_blank')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#8247E5] hover:bg-[#6c3bbf] text-white py-2.5 rounded-lg text-sm font-bold transition-all"
+                >
+                  <svg viewBox="0 0 40 40" className="w-4 h-4 fill-current"><path d="M26.2208 13.6847L20 9.87062L13.7792 13.6847V21.3129L20 25.1271L26.2208 21.3129V13.6847ZM28.4357 22.5956L20 27.7661L11.5643 22.5956V12.4045L20 7.23395L28.4357 12.4045V22.5956Z"></path><path d="M20.0001 27.7662L11.5645 32.9367V22.5957L20.0001 27.7662Z"></path><path d="M11.5645 12.4044L20.0001 7.23389V17.5749L11.5645 12.4044Z"></path><path d="M28.4357 12.4044L20.0001 17.5749V7.23389L28.4357 12.4044Z"></path><path d="M20.0001 27.7662L28.4357 22.5957V32.9367L20.0001 27.7662Z"></path></svg>
+                  View on Polygonscan
+                </button>
+              )}
+              <button
+                onClick={() => setVerifyResult(null)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

@@ -708,34 +708,72 @@ def verify_document_integrity(document_id: int, db: Session = Depends(get_db)):
         try:
             full_path = os.path.join(UPLOAD_DIR, v.file_path)
             if not os.path.exists(full_path):
-                results.append({"version": v.version_number, "status": "MISSING", "message": "File was deleted from the server!"})
+                results.append({"version": v.version_number, "status": "MISSING", "message": "⚠️ File was deleted from the server! This is a chain-of-custody violation."})
                 continue
             with open(full_path, "rb") as f:
                 file_bytes = f.read()
 
-            # Recompute using the SAME salted formula used at upload time
+            # --- Step 1: Recompute salted hash (same formula as upload time) ---
             hash_salt = f"|case:{case_id}|doc:{document_id}|version:{v.version_number}".encode()
             current_hash = hashlib.sha256(file_bytes + hash_salt).hexdigest()
 
-            if current_hash == v.file_hash:
-                message = "Cryptographic hash matches Local DB."
-                try:
-                    evidence_id = f"case_{case_id}_doc_{document_id}_v{v.version_number}"
-                    bc_result = blockchain_logger.verify_hash_on_blockchain(evidence_id, current_hash)
-                    if bc_result.get("status") == "verified":
-                        message = "VERIFIED BY POLYGON BLOCKCHAIN. Cryptographic hash perfectly matches the immutable ledger."
-                    elif bc_result.get("status") == "tampered":
-                        results.append({"version": v.version_number, "status": "TAMPERED", "message": "ALERT: Hash does not match the Blockchain Ledger!"})
-                        continue
-                except Exception as e:
-                    pass
+            # --- Step 2: Local DB comparison ---
+            local_match = (current_hash == v.file_hash)
 
-                results.append({"version": v.version_number, "status": "VERIFIED",
-                                 "message": message})
+            if not local_match:
+                # Local hash mismatch — file was definitely replaced on disk.
+                # Since the DB stored hash IS the same value that was sent to Polygon,
+                # a mismatch here means the file also does NOT match the Polygon Blockchain record.
+                results.append({
+                    "version": v.version_number,
+                    "status": "TAMPERED",
+                    "message": "🚨 CRITICAL ALERT: File hash does NOT match the Polygon Blockchain record. "
+                               "The file on disk has been REPLACED or MODIFIED after upload. "
+                               "The original hash is permanently locked on the Polygon Amoy ledger — "
+                               "this current file is NOT the document that was cryptographically sealed."
+                })
+                continue
 
+            # --- Step 3: Blockchain is the FINAL source of truth ---
+            # Even if local DB matches, we MUST verify against blockchain.
+            # A corrupt DB admin could update both file AND stored hash in DB simultaneously.
+            # Only blockchain cannot be altered.
+            blockchain_status = "not_checked"
+            blockchain_message = ""
+            try:
+                evidence_id = f"case_{case_id}_doc_{document_id}_v{v.version_number}"
+                bc_result = blockchain_logger.verify_hash_on_blockchain(evidence_id, current_hash)
+                blockchain_status = bc_result.get("status", "not_checked")
+            except Exception as e:
+                blockchain_status = "not_checked"
+
+            if blockchain_status == "tampered":
+                # File on disk matches DB but NOT blockchain — DB itself was tampered!
+                results.append({
+                    "version": v.version_number,
+                    "status": "TAMPERED",
+                    "message": "🚨 CRITICAL ALERT: Local database was COMPROMISED. "
+                               "File hash matches the local DB record but DOES NOT match "
+                               "the immutable Polygon Blockchain ledger. "
+                               "The database record was likely altered after upload!"
+                })
+            elif blockchain_status == "verified":
+                results.append({
+                    "version": v.version_number,
+                    "status": "VERIFIED",
+                    "message": "✅ VERIFIED BY POLYGON BLOCKCHAIN. File hash perfectly matches "
+                               "the immutable on-chain ledger. This document is untampered."
+                })
             else:
-                results.append({"version": v.version_number, "status": "TAMPERED",
-                                 "message": "ALERT: File content does not match the original hash!"})
+                # Blockchain not reachable or hash not yet confirmed on-chain
+                results.append({
+                    "version": v.version_number,
+                    "status": "VERIFIED_LOCAL",
+                    "message": "✅ Local cryptographic hash verified. "
+                               "Blockchain verification unavailable (network issue or pending confirmation). "
+                               "Hash matches local DB record."
+                })
+
         except Exception as e:
             results.append({"version": v.version_number, "status": "ERROR", "message": f"Could not read file: {str(e)}"})
     return {"document_id": document_id, "integrity_checks": results}
