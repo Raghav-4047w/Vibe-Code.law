@@ -114,7 +114,11 @@ def log_hash_to_blockchain(evidence_id: str, file_hash: str) -> dict:
         return {"status": "success", "tx_hash": tx_hex, "polygonscan_url": url}
     except Exception as e:
         print(f"[Blockchain] Transaction failed: {e}")
-        return {"status": "error", "reason": str(e)}
+        
+        err_str = str(e)
+        if "Not found" in err_str:
+            return {"status": "not_found"}
+        return {"status": "error", "reason": err_str}
 
 
 def verify_hash_on_blockchain(evidence_id: str, file_hash: str) -> dict:
@@ -135,4 +139,9 @@ def verify_hash_on_blockchain(evidence_id: str, file_hash: str) -> dict:
             return {"status": "not_found"}
         return {"status": "tampered"}
     except Exception as e:
-        return {"status": "error", "reason": str(e)}
+        
+        err_str = str(e)
+        if "Not found" in err_str:
+            return {"status": "not_found"}
+        return {"status": "error", "reason": err_str}
+
