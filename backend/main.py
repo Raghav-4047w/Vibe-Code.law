@@ -9,6 +9,14 @@ from datetime import datetime
 import hashlib
 import bcrypt
 import os
+import random
+import time
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Create DB tables
 Base.metadata.create_all(bind=engine)
@@ -42,35 +50,50 @@ def create_audit(db: Session, user_id: int, action: str, details: str, tx: str =
 #  AUTH
 # ═══════════════════════════════════════════
 
+
+# In-memory OTP store: badge_id -> {otp, email, expires}
+_otp_store: dict = {}
+
 @app.post("/api/auth/send-registration-otp")
 def send_registration_otp(body: dict):
     badge = body.get("badge_id", "").strip()
-    if not badge:
-        raise HTTPException(400, "Badge ID required")
-        
+    email = body.get("email", "").strip()
+    if not badge or not email:
+        raise HTTPException(400, "Badge ID and Email are required")
+    if "@" not in email or "." not in email:
+        raise HTTPException(400, "Invalid email address")
+    
     smtp_server = os.environ.get("SMTP_SERVER", "smtp.ethereal.email")
     smtp_port = int(os.environ.get("SMTP_PORT", 587))
     smtp_user = os.environ.get("SMTP_USER", "msfx77wiuhj2cp74@ethereal.email")
     smtp_pass = os.environ.get("SMTP_PASS", "kwMA2rENZz4MSVQZmz")
     
-    import random
-    reset_otp = str(random.randint(100000, 999999))
+    import random, time
+    otp = str(random.randint(100000, 999999))
+    _otp_store[badge] = {"otp": otp, "email": email, "expires": time.time() + 600}  # 10 min expiry
+    
+    # Determine recipient: if real SMTP configured, send to real email; else use Ethereal
+    is_real_smtp = os.environ.get("SMTP_SERVER") and os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASS")
+    recipient = email if is_real_smtp else smtp_user
     
     try:
         msg = MIMEMultipart()
         msg['From'] = f"Digital Evidence Locker <{smtp_user}>"
-        msg['To'] = f"{badge}@dept.gov.in"
-        msg['Subject'] = f"Registration OTP - {reset_otp}"
-        
+        msg['To'] = recipient
+        msg['Subject'] = f"[DEL] Registration Verification OTP: {otp}"
         body_text = f"""
-        Welcome to the Judicial Blockchain Network.
-        
-        Your registration OTP for Service ID {badge} is: {reset_otp}
-        
-        This email was sent via a live SMTP integration. View live inbox at:
-        https://ethereal.email/login (Use {smtp_user} and {smtp_pass})
+Digital Evidence Locker — Secure Registration OTP
+
+Officer/Official: {badge}
+Email: {email}
+OTP: {otp}
+
+This OTP is valid for 10 minutes. Do not share it with anyone.
+If you did not request this, ignore this message.
+
+National Judicial & Forensic Authentication Network
         """
-        msg.attach(MIMEText(body_text, 'plain'))
+        msg.attach(MIMEText(body_text.strip(), 'plain'))
         
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
@@ -78,23 +101,39 @@ def send_registration_otp(body: dict):
         server.send_message(msg)
         server.quit()
         
-        return {
-            "message": "OTP Dispatched",
-            "otp_sent": True,
-            "mock_otp": reset_otp # Returning it in response for Hackathon UI validation ease since it's a demo
-        }
+        # Return mock_otp only in demo/no-real-smtp mode so the UI can pre-fill it
+        response = {"message": "OTP dispatched", "otp_sent": True, "sent_to": recipient}
+        if not is_real_smtp:
+            response["mock_otp"] = otp  # Demo mode: expose OTP so tester can see it
+        return response
     except Exception as e:
         raise HTTPException(500, f"SMTP Error: {str(e)}")
 
 @app.post("/api/auth/register")
 def register(body: dict, db: Session = Depends(get_db)):
+    import time
     badge = body.get("badge_id", "").strip()
     name = body.get("name", "").strip()
+    email = body.get("email", "").strip()
     password = body.get("password", "")
     role = body.get("role", "Officer")
+    otp = body.get("otp", "").strip()
 
-    if not badge or not name or not password:
+    if not badge or not name or not password or not email:
         raise HTTPException(400, "All fields are required")
+
+    # Verify OTP
+    stored = _otp_store.get(badge)
+    if not stored:
+        raise HTTPException(400, "OTP not found. Please request a new OTP first.")
+    if time.time() > stored["expires"]:
+        del _otp_store[badge]
+        raise HTTPException(400, "OTP has expired. Please request a new OTP.")
+    if stored["otp"] != otp:
+        raise HTTPException(400, "Invalid OTP. Please check your email.")
+    
+    # OTP verified — clear it
+    del _otp_store[badge]
 
     if db.query(models.User).filter(models.User.badge_id == badge).first():
         raise HTTPException(400, "Badge ID already registered")
@@ -110,7 +149,7 @@ def register(body: dict, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    create_audit(db, user.id, "USER REGISTERED", f"{name} ({role}) registered with ID {badge}.")
+    create_audit(db, user.id, "USER REGISTERED", f"{name} ({role}) registered with ID {badge} | Email: {email}.")
     return {"message": "Registration successful"}
 
 
@@ -209,14 +248,15 @@ def forgot_password(body: dict, db: Session = Depends(get_db)):
         server.send_message(msg)
         server.quit()
         
-        create_audit(db, user.id, "PASSWORD_RESET_REQUEST", f"OTP generated and dispatched to {user.badge_id}.")
-        return {
-            "message": "Real-time OTP has been dispatched via SMTP.",
-            "otp_sent": True,
-            "inbox_url": "https://ethereal.email/login",
-            "test_user": smtp_user,
-            "test_pass": smtp_pass
-        }
+        create_audit(db, user.id, "PASSWORD_RESET_REQUEST", f"OTP dispatched for {user.badge_id}.")
+        is_real_smtp = os.environ.get("SMTP_SERVER") and os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASS")
+        resp = {"message": "OTP dispatched via SMTP.", "otp_sent": True}
+        if not is_real_smtp:
+            resp["mock_otp"] = reset_otp
+            resp["inbox_url"] = "https://ethereal.email/login"
+            resp["test_user"] = smtp_user
+            resp["test_pass"] = smtp_pass
+        return resp
     except Exception as e:
         raise HTTPException(500, f"SMTP Error: {str(e)}")
 
@@ -332,8 +372,8 @@ def upload_evidence(case_id: int, title: str = Form(...), type: str = Form("Docu
             ocr_text = f"[MOCK OCR SCAN]\nTitle: {title}\nDate: {datetime.utcnow().strftime('%d %b %Y')}\nDetails: Contains traces of digital asset movement and suspicious IP addresses (192.168.1.45, 10.0.0.9). Requires further cryptographic verification."
             ai_analysis = "The document explicitly references digital asset movement and IP addresses associated with known threat actors. This is highly relevant to establishing the chain of custody for the cyber fraud. Recommend immediate cross-referencing with ISP logs."
         else:
-            ocr_text = contents.decode('utf-8', errors='ignore')[:1000]
-            ai_analysis = "Standard document ingested. No specific legal threats automatically detected by fallback analyzer."
+            ocr_text = "[ERROR] GEMINI_API_KEY is not configured in backend/.env file. Real AI OCR cannot process binary image/PDF files without it."
+            ai_analysis = "Cannot perform AI legal analysis without GEMINI_API_KEY."
 
     ev = models.Evidence(
         case_id=case_id, 

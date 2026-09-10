@@ -16,6 +16,7 @@ export default function RegisterCase() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [userName, setUserName] = useState("Current User");
   const [userBadge, setUserBadge] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
     fir_no: "",
@@ -87,18 +88,37 @@ export default function RegisterCase() {
     }
     setLoading(true);
     try {
-      await axios.post("http://localhost:8000/api/cases", {
+      // 1. Create the Case
+      const res = await axios.post("http://localhost:8000/api/cases", {
         fir_no: formData.fir_no,
         title: formData.title,
         description: formData.description || "Initial case registration.",
-        statute: selectedSections.join(", ") || "N/A",
-        jurisdiction: formData.jurisdiction || "N/A",
         date: formData.date,
+        status: "Open",
+        legal_era: legalEra,
+        sections: selectedSections.join(", ") || "N/A",
+        jurisdiction: formData.jurisdiction || "N/A",
         io_id: parseInt(sessionStorage.getItem("userId") || "1"),
       });
+
+      const newCaseId = res.data.id;
+
+      // 2. Upload the Initial FIR Document if provided
+      if (evidenceFile) {
+        const fd = new FormData();
+        fd.append("title", "Initial FIR Document");
+        fd.append("type", "First Information Report (FIR)");
+        fd.append("file", evidenceFile);
+        fd.append("uploaded_by", sessionStorage.getItem("userName") || "Unknown Officer");
+        
+        await axios.post(`http://localhost:8000/api/cases/${newCaseId}/evidence`, fd, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+      }
+
       // Clear draft on successful submission
       localStorage.removeItem("caseDraft");
-      window.location.href = "/";
+      window.location.href = `/case/${newCaseId}`;
     } catch (err: any) {
       alert(err.response?.data?.detail || "Failed to register case.");
     } finally {

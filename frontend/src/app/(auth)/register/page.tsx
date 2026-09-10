@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState<"Officer" | "Analyst" | "Judge">("Officer");
   const [showPassword, setShowPassword] = useState(false);
   const [badgeId, setBadgeId] = useState("");
+  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,8 +24,12 @@ export default function RegisterPage() {
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!badgeId || !password || !name) {
-      setError("Please fill all required fields");
+    if (!badgeId || !password || !name || !email) {
+      setError("Please fill all required fields including email");
+      return;
+    }
+    if (!email.includes("@") || !email.includes(".")) {
+      setError("Please enter a valid email address");
       return;
     }
     setLoading(true);
@@ -32,9 +37,10 @@ export default function RegisterPage() {
     
     try {
       const res = await axios.post("http://localhost:8000/api/auth/send-registration-otp", {
-        badge_id: badgeId
+        badge_id: badgeId,
+        email: email
       });
-      setExpectedOtp(res.data.mock_otp); // Stored in state for hackathon verification ease
+      setExpectedOtp(res.data.mock_otp || ""); // Only populated in dev/demo mode
       setOtpStep(true);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to send OTP.");
@@ -45,11 +51,6 @@ export default function RegisterPage() {
 
   const handleVerifyRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpValue !== expectedOtp) {
-      setError("Invalid OTP entered. Please check Ethereal inbox.");
-      return;
-    }
-    
     setLoading(true);
     setError("");
     
@@ -57,8 +58,10 @@ export default function RegisterPage() {
       await axios.post("http://localhost:8000/api/auth/register", {
         badge_id: badgeId,
         name: name,
+        email: email,
         password: password,
-        role: role
+        role: role,
+        otp: otpValue
       });
       
       setSuccess(true);
@@ -148,11 +151,16 @@ export default function RegisterPage() {
 
         {otpStep ? (
           <div className="mb-6 space-y-4">
-            <div className="bg-[#F0F3FF] border border-outline-variant/50 rounded-lg p-4 text-left text-sm text-primary">
-              <p className="font-bold mb-2 text-secondary">Live Demo Testing Inbox:</p>
-              <p><strong>URL:</strong> <a href="https://ethereal.email/login" target="_blank" rel="noreferrer" className="text-blue-600 underline">ethereal.email/login</a></p>
-              <p><strong>Email:</strong> msfx77wiuhj2cp74@ethereal.email</p>
-              <p><strong>Pass:</strong> kwMA2rENZz4MSVQZmz</p>
+            <div className="bg-[#E7F5EE] border border-[#0D7A5F]/30 rounded-lg p-4 text-left text-sm text-primary">
+              <p className="font-bold mb-1 text-[#0D7A5F]">✓ OTP Sent Successfully</p>
+              <p className="text-[12px] text-on-surface-variant">Verification code dispatched to: <strong>{email}</strong></p>
+              {expectedOtp && (
+                <p className="text-[11px] mt-2 text-outline">
+                  <em>Demo mode:</em> Check Ethereal inbox at{" "}
+                  <a href="https://ethereal.email/login" target="_blank" rel="noreferrer" className="text-blue-600 underline">ethereal.email</a>
+                  {" "}with user <code>msfx77wiuhj2cp74@ethereal.email</code>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-label-md text-primary mb-1">Enter 6-Digit OTP</label>
@@ -189,6 +197,25 @@ export default function RegisterPage() {
                   className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-label-md text-primary mb-1.5">
+                Official / Departmental Email Address <span className="text-error">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-outline-variant text-[14px]">@</span>
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. vikram.rathore@delhipolice.gov.in"
+                  className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all"
+                />
+              </div>
+              <p className="text-[10px] text-outline mt-1">OTP will be sent to this email address for verification</p>
             </div>
 
             <div>

@@ -11,6 +11,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
   const [caseData, setCaseData] = useState<any>(null);
   const [evidenceList, setEvidenceList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [role, setRole] = useState("");
   const [userName, setUserName] = useState("");
@@ -152,28 +153,24 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
            </div>
         </div>
 
-        {/* Current Active Session Profile */}
-        <div className="bg-surface rounded-xl border border-outline-variant/50 p-3 flex flex-col shrink-0 min-w-[320px]">
-           <div className="flex justify-between items-center mb-3">
-             <span className="text-[10px] text-outline tracking-widest font-bold uppercase">ACTIVE SESSION PROFILE</span>
-             <span className={`text-[9px] font-bold tracking-widest px-2 py-0.5 rounded uppercase ${sessionTagColor}`}>{sessionTag}</span>
-           </div>
-           
-           <div className="flex items-center text-[11px] font-bold text-outline uppercase tracking-widest mb-3 border-b border-outline-variant/30 pb-2">
-             <span className={`flex-1 text-center ${role === "Officer" ? "text-primary" : ""}`}>Officer</span>
-             <span className={`flex-1 text-center ${role === "Judge" ? "text-primary" : ""}`}>
-               {role === "Judge" ? <span className="inline-flex items-center gap-1"><div className="w-1.5 h-1.5 bg-primary rounded-full"></div> Judge</span> : "Judge"}
-             </span>
-             <span className={`flex-1 text-center ${role === "Analyst" ? "text-primary" : ""}`}>
-               {role === "Analyst" ? <span className="inline-flex items-center gap-1"><div className="w-1.5 h-1.5 bg-[#92400E] rounded-full"></div> Analyst</span> : "Analyst"}
-             </span>
-           </div>
-
-          <div className="flex items-center gap-2">
-            <User size={16} className={role === "Analyst" ? "text-[#92400E]" : "text-primary"} />
-            <div className="flex flex-col">
-                <span className={`text-[12px] font-bold ${role === "Analyst" ? "text-[#92400E]" : "text-primary"}`}>{userName} ({userBadge})</span>
-            </div>
+        {/* Role / Access Badge — compact & separate */}
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex items-center gap-2 bg-surface rounded-xl border border-outline-variant/50 px-4 py-2">
+            <span className="text-[10px] text-outline tracking-widest font-bold uppercase">Session Access</span>
+            <span className={`text-[9px] font-bold tracking-widest px-2.5 py-1 rounded-full uppercase ${sessionTagColor}`}>{sessionTag}</span>
+          </div>
+          <div className="flex gap-2">
+            {["Officer", "Judge", "Analyst"].map((r) => (
+              <span key={r} className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                role === r
+                  ? "border-primary bg-primary text-white"
+                  : "border-outline-variant/30 bg-surface text-outline"
+              }`}>{r}</span>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-outline">
+            <User size={13} className={role === "Analyst" ? "text-[#92400E]" : "text-primary"} />
+            <span className={`font-bold ${role === "Analyst" ? "text-[#92400E]" : "text-primary"}`}>{userName} ({userBadge})</span>
           </div>
         </div>
       </div>
@@ -214,8 +211,11 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                  </div>
               </div>
 
-              <button className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm">
-                <Download size={16} /> Download Report
+              <button 
+                onClick={() => window.open(`http://localhost:8000/api/cases/${params.id}/pdf`, '_blank')}
+                className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm"
+              >
+                <Download size={16} /> Download Case Report (PDF)
               </button>
             </div>
           </div>
@@ -422,15 +422,37 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
             <h2 className="text-[18px] text-primary font-bold pl-2">Document Chain of Custody</h2>
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant" size={14} />
-              <input type="text" placeholder="Search by name, document, hash..." className="pl-8 pr-3 py-1.5 w-full bg-[#F0F3FF]/50 border border-outline-variant/50 rounded-lg text-[12px] focus:ring-2 focus:ring-secondary/30 focus:border-primary outline-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, document, hash..."
+                className="pl-8 pr-3 py-1.5 w-full bg-[#F0F3FF]/50 border border-outline-variant/50 rounded-lg text-[12px] focus:ring-2 focus:ring-secondary/30 focus:border-primary outline-none"
+              />
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto pr-1 space-y-4 pb-10">
-            {evidenceList.length === 0 ? (
-              <div className="text-center py-20 text-outline">No evidence artifacts uploaded yet.</div>
+            {evidenceList.filter(ev =>
+              !searchQuery ||
+              ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ev.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ev.file_hash?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ev.uploaded_by?.toLowerCase().includes(searchQuery.toLowerCase())
+            ).length === 0 ? (
+              <div className="text-center py-20 text-outline">
+                {searchQuery ? `No documents match "${searchQuery}".` : "No evidence artifacts uploaded yet."}
+              </div>
             ) : (
-              evidenceList.map((ev: any, idx: number) => (
+              evidenceList
+                .filter(ev =>
+                  !searchQuery ||
+                  ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  ev.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  ev.file_hash?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  ev.uploaded_by?.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((ev: any, idx: number) => (
                 <div key={idx} className="bg-white border border-outline-variant/50 rounded-xl p-4 shadow-sm">
                   
                   <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
