@@ -154,13 +154,6 @@ export default function RegisterPage() {
             <div className="bg-[#E7F5EE] border border-[#0D7A5F]/30 rounded-lg p-4 text-left text-sm text-primary">
               <p className="font-bold mb-1 text-[#0D7A5F]">✓ OTP Sent Successfully</p>
               <p className="text-[12px] text-on-surface-variant">Verification code dispatched to: <strong>{email}</strong></p>
-              {expectedOtp && (
-                <p className="text-[11px] mt-2 text-outline">
-                  <em>Demo mode:</em> Check Ethereal inbox at{" "}
-                  <a href="https://ethereal.email/login" target="_blank" rel="noreferrer" className="text-blue-600 underline">ethereal.email</a>
-                  {" "}with user <code>msfx77wiuhj2cp74@ethereal.email</code>
-                </p>
-              )}
             </div>
             <div>
               <label className="block text-label-md text-primary mb-1">Enter 6-Digit OTP</label>

@@ -120,7 +120,11 @@ export default function RegisterCase() {
       localStorage.removeItem("caseDraft");
       window.location.href = `/case/${newCaseId}`;
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to register case.");
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : 
+                  typeof detail === 'object' ? JSON.stringify(detail) : 
+                  err.message || "Failed to register case.";
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -331,11 +335,47 @@ export default function RegisterCase() {
           </div>
         </div>
 
-        {/* ── STEP 04: DECLARATION ── */}
+        {/* 📄 STEP 04: INITIAL EVIDENCE / FIR */}
+        <div className="p-8 border-t border-outline-variant/30">
+          <div className="flex justify-between items-center mb-6 border-b border-outline-variant/30 pb-3">
+            <div className="flex items-center gap-3">
+              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">04</span>
+              <h2 className="text-headline-sm text-primary font-bold tracking-wide">INITIAL DOCUMENT</h2>
+            </div>
+          </div>
+          
+          <div className="bg-surface-container-lowest border-2 border-dashed border-outline-variant/60 rounded-xl p-8 text-center hover:bg-surface-container-low transition-colors">
+            <input 
+              type="file" 
+              id="fir-upload" 
+              className="hidden" 
+              accept=".pdf,.png,.jpg,.jpeg" 
+              onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
+            />
+            <label htmlFor="fir-upload" className="cursor-pointer flex flex-col items-center">
+              <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3">
+                <ShieldAlert size={24} />
+              </div>
+              <span className="text-label-lg text-primary font-bold mb-1">
+                {evidenceFile ? evidenceFile.name : "Upload Signed FIR Copy / Initial Complaint"}
+              </span>
+              <span className="text-body-sm text-outline">
+                {evidenceFile ? `Size: ${(evidenceFile.size / 1024 / 1024).toFixed(2)} MB` : "PDF, JPEG, or PNG up to 10MB"}
+              </span>
+              {!evidenceFile && (
+                <span className="mt-4 bg-white border border-outline-variant/50 text-primary px-4 py-1.5 rounded-lg text-label-sm font-bold shadow-sm">
+                  Browse Files
+                </span>
+              )}
+            </label>
+          </div>
+        </div>
+
+        {/* ⚖️ STEP 05: DECLARATION ⚖️ */}
         <div className="p-8 border-t border-outline-variant/30 bg-surface/50">
           <div className="flex justify-between items-center mb-8 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">
-              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">04</span>
+              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">05</span>
               <h2 className="text-headline-sm text-primary font-bold tracking-wide">DECLARATION</h2>
             </div>
           </div>

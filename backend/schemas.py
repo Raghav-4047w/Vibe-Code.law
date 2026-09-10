@@ -52,16 +52,19 @@ class CaseBase(BaseModel):
     fir_no: str
     title: str
     description: str
-    statute: str
     jurisdiction: str
     date: str
 
 class CaseCreate(CaseBase):
     io_id: int
+    legal_era: str = "post"
+    sections: str = "N/A"
+    status: str = "Open"
 
 class Case(CaseBase):
     id: int
     status: str
+    statute: str
     is_sealed: bool
     created_at: datetime
     io_id: int

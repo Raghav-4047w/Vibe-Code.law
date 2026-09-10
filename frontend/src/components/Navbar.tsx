@@ -64,7 +64,7 @@ export default function Navbar() {
         </Link>
 
         {/* Middle: Navigation Tabs */}
-        <div className="hidden md:flex items-center gap-2 bg-surface p-1 rounded-xl border border-outline-variant/30 shadow-sm">
+        <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-surface p-1 rounded-xl border border-outline-variant/30 shadow-sm">
           {tabs.map((tab) => {
             const isActive = tab.match(pathname);
             return (

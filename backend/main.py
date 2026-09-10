@@ -272,7 +272,12 @@ def get_cases(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 
 @app.post("/api/cases", response_model=schemas.Case)
 def create_case(case: schemas.CaseCreate, db: Session = Depends(get_db)):
-    db_case = models.Case(**case.model_dump())
+    case_dict = case.model_dump()
+    # Map legal_era and sections to statute
+    sections = case_dict.pop("sections", "N/A")
+    legal_era = case_dict.pop("legal_era", "post")
+    case_dict["statute"] = f"{sections} (Era: {legal_era})"
+    db_case = models.Case(**case_dict)
     try:
         db.add(db_case)
         db.commit()
@@ -367,13 +372,9 @@ def upload_evidence(case_id: int, title: str = Form(...), type: str = Form("Docu
             ocr_text = f"Gemini OCR Failed: {str(e)}"
             ai_analysis = "Failed to run Gemini analysis."
     else:
-        # Mocking for hackathon demo if no key or dummy file
-        if "Dummy evidence content" in contents.decode('utf-8', errors='ignore'):
-            ocr_text = f"[MOCK OCR SCAN]\nTitle: {title}\nDate: {datetime.utcnow().strftime('%d %b %Y')}\nDetails: Contains traces of digital asset movement and suspicious IP addresses (192.168.1.45, 10.0.0.9). Requires further cryptographic verification."
-            ai_analysis = "The document explicitly references digital asset movement and IP addresses associated with known threat actors. This is highly relevant to establishing the chain of custody for the cyber fraud. Recommend immediate cross-referencing with ISP logs."
-        else:
-            ocr_text = "[ERROR] GEMINI_API_KEY is not configured in backend/.env file. Real AI OCR cannot process binary image/PDF files without it."
-            ai_analysis = "Cannot perform AI legal analysis without GEMINI_API_KEY."
+        # Mocking for hackathon demo if no key
+        ocr_text = f"[MOCK OCR SCAN]\nTitle: {title}\nDate: {datetime.utcnow().strftime('%d %b %Y')}\n\n[Extracted Text]\nThis is a mock extraction because GEMINI_API_KEY is not configured.\nThe document contains details related to case FIR No. and mentions IP addresses (192.168.1.45, 10.0.0.9) and digital asset wallets."
+        ai_analysis = "MOCK AI ANALYSIS: The document explicitly references digital asset movement and IP addresses associated with known threat actors. This is highly relevant to establishing the chain of custody for the cyber fraud. Recommend immediate cross-referencing with ISP logs."
 
     ev = models.Evidence(
         case_id=case_id, 
