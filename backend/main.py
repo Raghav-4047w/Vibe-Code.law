@@ -63,18 +63,20 @@ def send_registration_otp(body: dict):
     if "@" not in email or "." not in email:
         raise HTTPException(400, "Invalid email address")
     
-    smtp_server = os.environ.get("SMTP_SERVER", "smtp.ethereal.email")
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    
+    if not smtp_user or not smtp_pass or smtp_user == "your-real-email@gmail.com":
+        raise HTTPException(500, "SMTP Credentials Missing! Please add your real Email ID and App Password in backend/.env file to send the OTP.")
+        
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
     smtp_port = int(os.environ.get("SMTP_PORT", 587))
-    smtp_user = os.environ.get("SMTP_USER", "msfx77wiuhj2cp74@ethereal.email")
-    smtp_pass = os.environ.get("SMTP_PASS", "kwMA2rENZz4MSVQZmz")
     
     import random, time
     otp = str(random.randint(100000, 999999))
     _otp_store[badge] = {"otp": otp, "email": email, "expires": time.time() + 600}  # 10 min expiry
     
-    # Determine recipient: if real SMTP configured, send to real email; else use Ethereal
-    is_real_smtp = os.environ.get("SMTP_SERVER") and os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASS")
-    recipient = email if is_real_smtp else smtp_user
+    recipient = email
     
     try:
         msg = MIMEMultipart()
@@ -101,10 +103,7 @@ National Judicial & Forensic Authentication Network
         server.send_message(msg)
         server.quit()
         
-        # Return mock_otp only in demo/no-real-smtp mode so the UI can pre-fill it
         response = {"message": "OTP dispatched", "otp_sent": True, "sent_to": recipient}
-        if not is_real_smtp:
-            response["mock_otp"] = otp  # Demo mode: expose OTP so tester can see it
         return response
     except Exception as e:
         raise HTTPException(500, f"SMTP Error: {str(e)}")
@@ -208,13 +207,15 @@ def forgot_password(body: dict, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(404, "Service ID not found in records.")
         
-    # Using Ethereal Email (Real SMTP test service) for live demo out of the box
-    smtp_server = os.environ.get("SMTP_SERVER", "smtp.ethereal.email")
-    smtp_port = int(os.environ.get("SMTP_PORT", 587))
-    smtp_user = os.environ.get("SMTP_USER", "msfx77wiuhj2cp74@ethereal.email")
-    smtp_pass = os.environ.get("SMTP_PASS", "kwMA2rENZz4MSVQZmz")
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
     
-    # Generate 6-digit OTP
+    if not smtp_user or not smtp_pass or smtp_user == "your-real-email@gmail.com":
+        raise HTTPException(500, "SMTP Credentials Missing! Please add your real Email ID and App Password in backend/.env file to send the OTP.")
+        
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    
     import random
     reset_otp = str(random.randint(100000, 999999))
     
@@ -225,22 +226,19 @@ def forgot_password(body: dict, db: Session = Depends(get_db)):
         msg['Subject'] = f"URGENT: Password Reset OTP - {reset_otp}"
         
         body_text = f"""
-        Dear {user.name},
-        
-        A password recovery request was initiated for your Judicial Blockchain Network account (ID: {user.badge_id}).
-        
-        Your real-time secure OTP is: {reset_otp}
-        
-        Please enter this OTP in the application to proceed with the password reset.
-        If you did not request this, please contact the IT cell immediately.
-        
-        This email was sent via a live SMTP integration. You can view the live inbox at:
-        https://ethereal.email/login (Use {smtp_user} and {smtp_pass})
-        
-        Regards,
-        Digital Evidence Locker System
-        """
-        msg.attach(MIMEText(body_text, 'plain'))
+Dear {user.name},
+
+A password recovery request was initiated for your Judicial Blockchain Network account (ID: {user.badge_id}).
+
+Your real-time secure OTP is: {reset_otp}
+
+Please enter this OTP in the application to proceed with the password reset.
+If you did not request this, please contact the IT cell immediately.
+
+Regards,
+Digital Evidence Locker System
+"""
+        msg.attach(MIMEText(body_text.strip(), 'plain'))
         
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
@@ -249,14 +247,7 @@ def forgot_password(body: dict, db: Session = Depends(get_db)):
         server.quit()
         
         create_audit(db, user.id, "PASSWORD_RESET_REQUEST", f"OTP dispatched for {user.badge_id}.")
-        is_real_smtp = os.environ.get("SMTP_SERVER") and os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASS")
-        resp = {"message": "OTP dispatched via SMTP.", "otp_sent": True}
-        if not is_real_smtp:
-            resp["mock_otp"] = reset_otp
-            resp["inbox_url"] = "https://ethereal.email/login"
-            resp["test_user"] = smtp_user
-            resp["test_pass"] = smtp_pass
-        return resp
+        return {"message": "OTP dispatched via SMTP.", "otp_sent": True}
     except Exception as e:
         raise HTTPException(500, f"SMTP Error: {str(e)}")
 
@@ -348,33 +339,51 @@ def upload_evidence(case_id: int, title: str = Form(...), type: str = Form("Docu
     ocr_text = "No text extracted."
     ai_analysis = "No AI analysis performed."
 
-    # Gemini Integration
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key and len(contents) > 0:
+    # Tesseract OCR Integration
+    import pytesseract
+    from PIL import Image
+    import fitz  # PyMuPDF
+    import io
+    import re
+    
+    # Configure Tesseract path for Windows
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+    if len(contents) > 0:
         try:
-            client = genai.Client(api_key=api_key)
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    "Extract all text perfectly from this document as if you are an OCR scanner. Then add a separator '---ANALYSIS---', and write a very brief 3-sentence legal analysis identifying any critical entities (names, banks, amounts, dates) and its relevance to a cybercrime or financial fraud investigation.",
-                    {"mime_type": file.content_type or "text/plain", "data": contents}
-                ]
-            )
-            result = response.text
-            if "---ANALYSIS---" in result:
-                parts = result.split("---ANALYSIS---")
-                ocr_text = parts[0].strip()
-                ai_analysis = parts[1].strip()
+            # 1. OCR Extraction
+            extracted_text = ""
+            if "pdf" in (file.content_type or "").lower():
+                doc = fitz.open(stream=contents, filetype="pdf")
+                for page in doc:
+                    pix = page.get_pixmap()
+                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    extracted_text += pytesseract.image_to_string(img) + "\n"
             else:
-                ocr_text = result
-                ai_analysis = "Analysis could not be separated from text."
+                img = Image.open(io.BytesIO(contents))
+                extracted_text = pytesseract.image_to_string(img)
+            
+            ocr_text = extracted_text.strip() if extracted_text.strip() else "[No text detected in document]"
+            
+            # 2. Automated Rule-Based Analysis
+            ips = re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', ocr_text)
+            emails = re.findall(r'[\w\.-]+@[\w\.-]+', ocr_text)
+            keywords = ['fraud', 'crypto', 'wallet', 'suspect', 'transaction', 'unauthorized', 'bank', 'account']
+            found_keywords = [kw for kw in keywords if kw.lower() in ocr_text.lower()]
+            
+            analysis = "Automated Document Analysis:\n"
+            if ips: analysis += f"- Detected IP Addresses: {', '.join(set(ips))}\n"
+            if emails: analysis += f"- Detected Emails: {', '.join(set(emails))}\n"
+            if found_keywords: analysis += f"- High-Risk Entities: {', '.join(set(found_keywords))}\n"
+            
+            if not ips and not emails and not found_keywords:
+                analysis += "- No critical digital forensic markers identified in text.\n"
+                
+            ai_analysis = analysis.strip()
+
         except Exception as e:
-            ocr_text = f"Gemini OCR Failed: {str(e)}"
-            ai_analysis = "Failed to run Gemini analysis."
-    else:
-        # Mocking for hackathon demo if no key
-        ocr_text = f"[MOCK OCR SCAN]\nTitle: {title}\nDate: {datetime.utcnow().strftime('%d %b %Y')}\n\n[Extracted Text]\nThis is a mock extraction because GEMINI_API_KEY is not configured.\nThe document contains details related to case FIR No. and mentions IP addresses (192.168.1.45, 10.0.0.9) and digital asset wallets."
-        ai_analysis = "MOCK AI ANALYSIS: The document explicitly references digital asset movement and IP addresses associated with known threat actors. This is highly relevant to establishing the chain of custody for the cyber fraud. Recommend immediate cross-referencing with ISP logs."
+            ocr_text = f"[OCR Failed] Please ensure Tesseract is installed at C:\\Program Files\\Tesseract-OCR\\tesseract.exe. Error: {str(e)}"
+            ai_analysis = "Analysis could not run because OCR extraction failed."
 
     ev = models.Evidence(
         case_id=case_id, 
