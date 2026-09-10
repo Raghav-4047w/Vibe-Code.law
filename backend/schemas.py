@@ -1,66 +1,81 @@
 from pydantic import BaseModel
-from datetime import datetime
 from typing import List, Optional
+from datetime import datetime
 
-class User(BaseModel):
-    id: int
+class UserBase(BaseModel):
     username: str
+    name: str
+    role: str
+    badge_id: str
+    department: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserLogin(BaseModel):
+    badge_id: str
+    password: str
     role: str
 
+class User(UserBase):
+    id: int
     class Config:
         from_attributes = True
 
-class DocumentVersion(BaseModel):
-    id: int
-    version_number: int
-    status: str
-    file_path: str
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    role: str
+
+class EvidenceBase(BaseModel):
+    title: str
+    type: str
+    size: str
     file_hash: str
-    created_at: datetime
-    uploaded_by: int
-    extracted_text: Optional[str] = None
-    ai_summary: Optional[str] = None
-    entities: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+class EvidenceCreate(EvidenceBase):
+    pass
 
-class Document(BaseModel):
+class Evidence(EvidenceBase):
     id: int
-    name: str
-    doc_type: str
-    created_at: datetime
-    versions: List[DocumentVersion] = []
-
+    case_id: int
+    uploaded_at: datetime
+    uploaded_by: str
+    blockchain_tx: Optional[str] = None
+    ipfs_cid: Optional[str] = None
+    ocr_text: Optional[str] = None
+    ai_analysis: Optional[str] = None
     class Config:
         from_attributes = True
 
 class CaseBase(BaseModel):
-    case_number: str
+    fir_no: str
     title: str
+    description: str
+    statute: str
+    jurisdiction: str
+    date: str
 
 class CaseCreate(CaseBase):
-    pass
+    io_id: int
 
 class Case(CaseBase):
     id: int
     status: str
-    is_sealed: bool = False
-    sealed_by: Optional[int] = None
-    sealed_at: Optional[datetime] = None
+    is_sealed: bool
     created_at: datetime
-    documents: List[Document] = []
-
+    io_id: int
+    io: Optional[User] = None
+    evidences: List[Evidence] = []
     class Config:
         from_attributes = True
 
 class AuditLog(BaseModel):
     id: int
-    user_id: int
+    timestamp: datetime
     action: str
     details: str
-    timestamp: datetime
-
+    blockchain_tx: Optional[str] = None
+    user: Optional[User] = None
     class Config:
         from_attributes = True
-

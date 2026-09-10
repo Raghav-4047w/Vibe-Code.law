@@ -1,0 +1,560 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Scale, FileText, Download, UploadCloud, Lock, CheckCircle2, AlertTriangle, ShieldCheck, HardDrive, ChevronDown, ChevronRight, User, Search, Database, Loader2, Info } from "lucide-react";
+import Link from "next/link";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+
+export default function CaseDossier({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const [caseData, setCaseData] = useState<any>(null);
+  const [evidenceList, setEvidenceList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [role, setRole] = useState("");
+  const [userName, setUserName] = useState("");
+  const [userBadge, setUserBadge] = useState("");
+  const [userId, setUserId] = useState<number>(1);
+  
+  // Seal Case State
+  const [verdict, setVerdict] = useState("");
+  const [orderRef, setOrderRef] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [sealConfirmed, setSealConfirmed] = useState(false);
+  const [isSealing, setIsSealing] = useState(false);
+
+  // Upload Evidence State
+  const [evType, setEvType] = useState("First Information Report (FIR)");
+  const [evTitle, setEvTitle] = useState("");
+  const [evDate, setEvDate] = useState(new Date().toISOString().split('T')[0]);
+  const [evConfirmed, setEvConfirmed] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const fetchEvidence = async () => {
+    try {
+      const evidenceRes = await axios.get(`http://localhost:8000/api/cases/${params.id}/evidence`);
+      setEvidenceList(evidenceRes.data);
+    } catch (err) {
+      console.error("Failed to fetch evidence data");
+    }
+  };
+
+  useEffect(() => {
+    setRole(sessionStorage.getItem("userRole") || "Officer");
+    setUserName(sessionStorage.getItem("userName") || "");
+    setUserBadge(sessionStorage.getItem("userBadge") || "");
+    setUserId(parseInt(sessionStorage.getItem("userId") || "1"));
+
+    const fetchData = async () => {
+      try {
+        const [caseRes, evidenceRes] = await Promise.all([
+          axios.get(`http://localhost:8000/api/cases/${params.id}`),
+          axios.get(`http://localhost:8000/api/cases/${params.id}/evidence`)
+        ]);
+        setCaseData(caseRes.data);
+        setEvidenceList(evidenceRes.data);
+      } catch (err) {
+        console.error("Failed to fetch case data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [params.id]);
+
+  const handleSealCase = async () => {
+    if (!verdict || !orderRef || !sealConfirmed) {
+      alert("Please fill in the Judicial Verdict, Sealing Order Reference, and check the confirmation box.");
+      return;
+    }
+    
+    setIsSealing(true);
+    try {
+      await axios.post(`http://localhost:8000/api/cases/${params.id}/seal`, {
+        verdict: verdict,
+        order_ref: orderRef,
+        remarks: remarks,
+        user_id: userId
+      });
+      setCaseData({ ...caseData, is_sealed: true, status: verdict });
+      alert("Case has been judicially sealed.");
+    } catch (err) {
+      alert("Failed to seal case.");
+    } finally {
+      setIsSealing(false);
+    }
+  };
+
+  const [evFile, setEvFile] = useState<File | null>(null);
+
+  const handleUploadEvidence = async () => {
+    if (!evTitle || !evConfirmed || !evFile) {
+      alert("Please provide a Document Title, attach a file, and check the confirmation box.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("title", evTitle);
+      formData.append("type", evType);
+      formData.append("uploaded_by", userName);
+      formData.append("file", evFile);
+
+      await axios.post(`http://localhost:8000/api/cases/${params.id}/evidence`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      
+      alert("Evidence uploaded and cryptographically sealed.");
+      setEvTitle("");
+      setEvConfirmed(false);
+      await fetchEvidence(); // Refresh list
+    } catch (err) {
+      alert("Failed to upload evidence.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
+  }
+
+  if (!caseData) {
+    return <div className="text-center py-20 text-outline">Case not found.</div>;
+  }
+
+  // Dynamic texts based on role
+  const sessionTag = role === "Officer" ? "FULL IO EXECUTION" : role === "Judge" ? "JUDICIAL READ-ONLY REVIEW" : "ANALYST READ-ONLY ACCESS";
+  const sessionTagColor = role === "Officer" ? "bg-primary text-white" : role === "Judge" ? "bg-[#0D7A5F] text-white" : "bg-[#101B31] text-white";
+
+  return (
+    <div className="w-full flex flex-col gap-6 font-sans">
+      
+      {/* Top Main Header Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-outline-variant/50 p-6 flex flex-col lg:flex-row justify-between gap-6">
+        <div className="flex items-start gap-4">
+           <div className="bg-primary rounded-xl p-4 text-white shadow-md mt-1 shrink-0">
+             <Scale size={28} />
+           </div>
+           <div>
+             <h1 className="text-display-lg-mobile text-primary font-bold m-0 leading-tight">{caseData.title}</h1>
+             <div className="flex flex-wrap items-center gap-3 mt-3">
+               <span className="text-[11px] text-primary font-bold tracking-widest uppercase bg-surface-container-low px-2 py-1 rounded">
+                 REF: {caseData.fir_no}
+               </span>
+               <span className="text-body-sm text-outline">•</span>
+               <span className="text-body-sm text-on-surface-variant flex items-center gap-1.5"><ShieldCheck size={14}/> {caseData.jurisdiction}</span>
+               <span className="text-body-sm text-outline">•</span>
+               <span className="text-body-sm text-outline flex items-center gap-1.5"><Lock size={14}/> Logged: {caseData.date}</span>
+             </div>
+           </div>
+        </div>
+
+        {/* Current Active Session Profile */}
+        <div className="bg-surface rounded-xl border border-outline-variant/50 p-3 flex flex-col shrink-0 min-w-[320px]">
+           <div className="flex justify-between items-center mb-3">
+             <span className="text-[10px] text-outline tracking-widest font-bold uppercase">ACTIVE SESSION PROFILE</span>
+             <span className={`text-[9px] font-bold tracking-widest px-2 py-0.5 rounded uppercase ${sessionTagColor}`}>{sessionTag}</span>
+           </div>
+           
+           <div className="flex items-center text-[11px] font-bold text-outline uppercase tracking-widest mb-3 border-b border-outline-variant/30 pb-2">
+             <span className={`flex-1 text-center ${role === "Officer" ? "text-primary" : ""}`}>Officer</span>
+             <span className={`flex-1 text-center ${role === "Judge" ? "text-primary" : ""}`}>
+               {role === "Judge" ? <span className="inline-flex items-center gap-1"><div className="w-1.5 h-1.5 bg-primary rounded-full"></div> Judge</span> : "Judge"}
+             </span>
+             <span className={`flex-1 text-center ${role === "Analyst" ? "text-primary" : ""}`}>
+               {role === "Analyst" ? <span className="inline-flex items-center gap-1"><div className="w-1.5 h-1.5 bg-[#92400E] rounded-full"></div> Analyst</span> : "Analyst"}
+             </span>
+           </div>
+
+          <div className="flex items-center gap-2">
+            <User size={16} className={role === "Analyst" ? "text-[#92400E]" : "text-primary"} />
+            <div className="flex flex-col">
+                <span className={`text-[12px] font-bold ${role === "Analyst" ? "text-[#92400E]" : "text-primary"}`}>{userName} ({userBadge})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* LEFT COLUMN */}
+        <div className="w-full lg:w-[350px] flex flex-col gap-6 shrink-0">
+          
+          {/* Evidentiary Metadata */}
+          <div className="bg-white rounded-xl shadow-sm border border-outline-variant/50 overflow-hidden">
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-[14px] text-primary font-bold flex items-center gap-2"><Database size={16}/> Evidentiary Metadata</h3>
+                {!caseData.is_sealed && (role === "Judge" || role === "Analyst") && (
+                  <span className="text-[9px] bg-[#FFF8ED] text-[#92400E] border border-[#FCD34D] px-2 py-0.5 rounded font-bold uppercase tracking-widest">PENDING JUDICIAL SEAL</span>
+                )}
+                {caseData.is_sealed && (
+                  <span className="text-[9px] bg-error-container text-error px-2 py-0.5 rounded font-bold uppercase tracking-widest flex items-center gap-1"><Lock size={10}/> SEALED</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-5 border-b border-outline-variant/30 pb-5">
+                <div className="text-center border-r border-outline-variant/30">
+                  <div className="text-[28px] text-primary font-bold leading-none mb-2">{evidenceList.length}</div>
+                  <div className="text-[10px] text-outline font-bold tracking-widest uppercase">ARTIFACTS</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[28px] text-primary font-bold leading-none mb-2">0</div>
+                  <div className="text-[10px] text-outline font-bold tracking-widest uppercase">TAMPER ALERTS</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 bg-[#F0F3FF]/50 p-3 rounded-lg border border-outline-variant/30 mb-5">
+                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white shrink-0"><ShieldCheck size={14}/></div>
+                 <div>
+                   <p className="text-[9px] text-outline uppercase tracking-widest font-bold mb-0.5">AUTHORIZED CUSTODIAN IO</p>
+                   <p className="text-[13px] text-primary font-bold leading-tight">IO ID: {caseData.io_id}</p>
+                 </div>
+              </div>
+
+              <button className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm">
+                <Download size={16} /> Download Report
+              </button>
+            </div>
+          </div>
+
+          {/* Role-Specific Action Cards */}
+          
+          {/* JUDGE ROLE */}
+          {role === "Judge" && (
+            <div className={`bg-white rounded-xl shadow-sm border overflow-hidden ${caseData.is_sealed ? 'border-outline-variant/50' : 'border border-outline-variant/50'}`}>
+              <div className="p-5 border-b border-outline-variant/30 bg-surface/50 flex justify-between items-center">
+                <h3 className="text-[14px] text-primary font-bold flex items-center gap-2"><Scale size={16} /> Seal the Case</h3>
+                <Lock size={14} className="text-[#92400E]" />
+              </div>
+              
+              <div className="p-5">
+                {caseData.is_sealed ? (
+                  <div className="bg-surface-container p-4 rounded-lg text-center">
+                    <Lock size={24} className="mx-auto text-primary mb-2" />
+                    <p className="text-[13px] font-bold text-primary">Case is Judicially Sealed</p>
+                    <p className="text-[11px] text-outline mt-1">{caseData.status}</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-[12px] text-outline mb-4 leading-relaxed">Sealing this case finalizes the evidentiary record under judicial authority. No further documents or evidence may be added, and all chain-of-custody entries become permanently locked.</p>
+                    
+                    <div className="space-y-4 mb-5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-primary mb-1">Judicial Verdict / Case Disposition *</label>
+                        <select 
+                          value={verdict} onChange={(e) => setVerdict(e.target.value)}
+                          className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-primary bg-white focus:outline-none focus:border-primary"
+                        >
+                          <option value="">-- Select Disposition --</option>
+                          <option value="Chargesheet Filed">Chargesheet Filed</option>
+                          <option value="Case Closed - Lack of Evidence">Case Closed - Lack of Evidence</option>
+                          <option value="Transferred to Higher Court">Transferred to Higher Court</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[11px] font-bold text-primary mb-1">Sealing Order / Judgment Reference *</label>
+                        <input 
+                          type="text" value={orderRef} onChange={(e) => setOrderRef(e.target.value)} placeholder="e.g., JUD-ORD-2026-DEL"
+                          className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-primary bg-[#F0F3FF]/30 focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[11px] font-bold text-primary mb-1">Judicial Remarks / Sealing Direction (Optional)</label>
+                        <textarea 
+                          rows={3} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Evidence verified and record directed for final archival..."
+                          className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-primary bg-white focus:outline-none focus:border-primary resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <label className="flex items-start gap-3 mb-5 cursor-pointer bg-surface/50 p-3 rounded-lg border border-outline-variant/30">
+                      <input type="checkbox" checked={sealConfirmed} onChange={(e) => setSealConfirmed(e.target.checked)} className="mt-0.5" />
+                      <span className="text-[11px] text-primary leading-relaxed">I solemnly attest and confirm under judicial seal that this case dossier is finalized, exhibits are verified, and the record is to be permanently cryptographically sealed.</span>
+                    </label>
+                    
+                    <button 
+                      onClick={handleSealCase} disabled={isSealing}
+                      className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm disabled:opacity-70"
+                    >
+                      {isSealing ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                      Seal Case & Affix Judicial Lock
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ANALYST ROLE */}
+          {role === "Analyst" && (
+            <div className="bg-white rounded-xl shadow-sm border border-outline-variant/50 overflow-hidden">
+              <div className="p-5 border-b border-outline-variant/30 bg-surface/50 flex justify-between items-center">
+                <h3 className="text-[14px] text-primary font-bold flex items-center gap-2"><ShieldCheck size={16} /> Analyst Access Privileges</h3>
+                <span className="text-[9px] bg-surface-container-high text-primary px-2 py-0.5 rounded font-bold uppercase tracking-widest">RESTRICTED REVIEW</span>
+              </div>
+              <div className="p-5">
+                <div className="bg-[#FFF8ED] border border-[#FCD34D]/50 p-3 rounded-lg mb-4 flex gap-2 items-start">
+                  <Info size={16} className="text-[#92400E] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[12px] font-bold text-[#92400E] mb-1">Notice: Sorry, you are only allowed to view and download the report.</p>
+                    <p className="text-[11px] text-[#92400E]/80 leading-relaxed">Analyst role is restricted to read-only evidentiary review, cryptographic verification, and certified report generation. Evidentiary modification requires Officer credentials.</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center border-b border-outline-variant/30 pb-2 mb-2">
+                   <span className="text-[11px] text-outline">Report Scope</span>
+                   <span className="text-[12px] text-primary font-bold">Full Dossier ({evidenceList.length} Artifacts)</span>
+                </div>
+                <div className="flex justify-between items-center mb-6">
+                   <span className="text-[11px] text-outline">Cryptographic Checksum</span>
+                   <span className="text-[12px] text-[#0D7A5F] font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Verified</span>
+                </div>
+
+                <button onClick={() => window.open(`http://localhost:8000/api/cases/${params.id}/pdf`, '_blank')} className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm">
+                  <Download size={16} /> Download Evidentiary Report
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* OFFICER ROLE */}
+          {role === "Officer" && (
+             <div className="bg-white rounded-xl shadow-sm border border-outline-variant/50 overflow-hidden">
+              <div className="p-5 border-b border-outline-variant/30 bg-surface/50">
+                <h3 className="text-[14px] text-[#92400E] font-bold flex items-center gap-2"><UploadCloud size={16} /> Add Evidence Record</h3>
+              </div>
+              <div className="p-5">
+                {caseData.is_sealed ? (
+                  <div className="flex items-start gap-2 bg-error-container/50 p-4 rounded-lg text-error">
+                     <Lock size={18} className="shrink-0 mt-0.5" />
+                     <div>
+                       <p className="text-[13px] font-bold mb-1">Judicially Sealed</p>
+                       <p className="text-[11px]">This case dossier is locked. No further evidence can be added to the chain of custody.</p>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 mb-5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-primary mb-1">Evidence Artifact Type</label>
+                      <select 
+                        value={evType} onChange={(e) => setEvType(e.target.value)}
+                        className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-primary bg-[#F0F3FF]/30 focus:outline-none focus:border-primary"
+                      >
+                        <option>First Information Report (FIR)</option>
+                        <option>Seizure Memo / Panchnama</option>
+                        <option>Digital Disk Clone / Bit-Stream</option>
+                        <option>CCTV / Multimedia Footage</option>
+                        <option>Forensic Analyst Report</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[11px] font-bold text-primary mb-1">Document Title</label>
+                      <input 
+                        type="text" value={evTitle} onChange={(e) => setEvTitle(e.target.value)} placeholder="e.g. Supplementary Addendum on Digital Asset Movement"
+                        className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-primary bg-white focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                       <div>
+                          <label className="block text-[11px] font-bold text-primary mb-1">Filing Date</label>
+                          <input type="date" value={evDate} onChange={(e) => setEvDate(e.target.value)} className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-primary bg-white focus:outline-none" />
+                       </div>
+                       <div>
+                          <label className="block text-[11px] font-bold text-primary mb-1">Filing Officer</label>
+                          <input type="text" value={userName} readOnly className="w-full border border-outline-variant/50 rounded p-2 text-[13px] text-outline bg-surface-container focus:outline-none" />
+                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-primary mb-1">Attach Digital Artifact</label>
+                      <label className="border border-dashed border-outline-variant rounded-lg p-5 text-center bg-[#F0F3FF]/30 hover:bg-[#F0F3FF] transition-colors cursor-pointer block relative">
+                        <input type="file" accept="application/pdf,image/png,image/jpeg,image/jpg,.raw,.e01,.mp4,.pcap" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setEvFile(e.target.files?.[0] || null)} />
+                        <FileText size={20} className={`mx-auto mb-2 ${evFile ? 'text-[#0D7A5F]' : 'text-[#92400E]'}`} />
+                        <p className={`text-[12px] font-bold mb-0.5 ${evFile ? 'text-[#0D7A5F]' : 'text-primary'}`}>
+                          {evFile ? evFile.name : "Click to browse or drag evidence file"}
+                        </p>
+                        <p className="text-[10px] text-outline">
+                          {evFile ? `${(evFile.size / 1024).toFixed(1)} KB` : "Allowed formats: .PDF, .RAW, .E01, .MP4, .PCAP"}
+                        </p>
+                      </label>
+                    </div>
+
+                    <label className="flex items-start gap-3 cursor-pointer mt-2">
+                      <input type="checkbox" checked={evConfirmed} onChange={(e) => setEvConfirmed(e.target.checked)} className="mt-0.5" />
+                      <span className="text-[11px] text-primary leading-tight">I solemnly attest that this digital artifact is genuine, unadulterated, and seized under lawful statutory custody.</span>
+                    </label>
+
+                    <button 
+                      onClick={handleUploadEvidence} disabled={isUploading}
+                      className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm mt-4 disabled:opacity-70"
+                    >
+                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                      Upload & Cryptographically Seal
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* COMMON: Admissibility Mandate */}
+          <div className="bg-[#F0F3FF] rounded-xl p-4 flex gap-3 items-start border border-[#ccdbf6]">
+             <Info size={16} className="text-[#92400E] shrink-0 mt-0.5" />
+             <div>
+                <p className="text-[11px] font-bold text-primary mb-1">Admissibility Mandate (BSA 2023)</p>
+                <p className="text-[10px] text-primary/80 leading-relaxed">Any modification to an uploaded artifact appends a new revision node. Previous versions cannot be expunged, deleted, or re-written.</p>
+             </div>
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="flex-1 flex flex-col gap-4">
+          
+          <div className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-outline-variant/50">
+            <h2 className="text-[18px] text-primary font-bold pl-2">Document Chain of Custody</h2>
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant" size={14} />
+              <input type="text" placeholder="Search by name, document, hash..." className="pl-8 pr-3 py-1.5 w-full bg-[#F0F3FF]/50 border border-outline-variant/50 rounded-lg text-[12px] focus:ring-2 focus:ring-secondary/30 focus:border-primary outline-none" />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-1 space-y-4 pb-10">
+            {evidenceList.length === 0 ? (
+              <div className="text-center py-20 text-outline">No evidence artifacts uploaded yet.</div>
+            ) : (
+              evidenceList.map((ev: any, idx: number) => (
+                <div key={idx} className="bg-white border border-outline-variant/50 rounded-xl p-4 shadow-sm">
+                  
+                  <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="bg-[#F0F3FF] p-2.5 rounded-lg text-primary border border-outline-variant/30 mt-1"><FileText size={20}/></div>
+                      <div>
+                        <h4 className="text-[14px] text-primary font-bold leading-tight mb-1">
+                          <span className="bg-[#E2E8F0] text-primary px-1.5 py-0.5 rounded text-[10px] mr-2">v{evidenceList.length - idx}</span>
+                          {ev.type} — {ev.title}
+                        </h4>
+                        <p className="text-[11px] text-outline font-mono">{ev.file_hash.substring(0, 32)}... • Size: {ev.size}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 shrink-0 w-full xl:w-auto mt-2 xl:mt-0">
+                       <label className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary transition-colors cursor-pointer">
+                         <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-[#0D7A5F]"/> Verify Local Integrity</div>
+                         <input type="file" className="hidden" onChange={async (e) => {
+                           const file = e.target.files?.[0];
+                           if (!file) return;
+                           try {
+                             const buffer = await file.arrayBuffer();
+                             const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+                             const hashArray = Array.from(new Uint8Array(hashBuffer));
+                             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                             if (hashHex === ev.file_hash) {
+                               alert("Integrity Verified! The selected file is completely identical to the blockchain record.");
+                             } else {
+                               alert(`INTEGRITY COMPROMISED!\nThe local file has been altered.\nExpected Hash: ${ev.file_hash.substring(0,16)}...\nGot Hash: ${hashHex.substring(0,16)}...`);
+                             }
+                           } catch (err) {
+                             alert("Verification failed: " + err);
+                           }
+                           e.target.value = '';
+                         }} />
+                       </label>
+                       <button className="flex items-center justify-between xl:justify-start gap-2 bg-[#FFF8ED] hover:bg-[#FFF8ED]/80 border border-[#FCD34D] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[#92400E] transition-colors">
+                         <div className="flex items-center gap-1.5"><HardDrive size={12}/> Polygonscan</div>
+                       </button>
+                       {role === "Officer" && !caseData.is_sealed ? (
+                         <button className="flex items-center justify-between xl:justify-start gap-2 bg-primary hover:bg-[#101B31] text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors">
+                           <div className="flex items-center gap-1.5"><UploadCloud size={12}/> Update Version</div>
+                         </button>
+                       ) : (
+                         <button className="flex items-center justify-between xl:justify-start gap-2 bg-surface hover:bg-surface-container border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-outline transition-colors">
+                           <div className="flex items-center gap-1.5"><Lock size={12}/> Read-Only Log</div>
+                         </button>
+                       )}
+                    </div>
+                  </div>
+
+                  {/* Accordions */}
+                  <div className="mt-4 flex flex-col gap-2">
+                    
+                    {/* Gemini Analysis Accordion */}
+                    <details open className="group bg-[#FFF8ED]/50 border border-[#FCD34D]/50 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                      <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
+                        <div className="flex items-center gap-2">
+                           <ShieldCheck size={14} className="text-[#92400E]" />
+                           <span className="text-[12px] font-bold text-primary">AI Document Analysis</span>
+                           <span className="text-[9px] font-bold uppercase tracking-widest text-[#92400E] bg-[#FCD34D]/30 px-2 py-0.5 rounded">Auto-Generated • Gemini Legal AI</span>
+                        </div>
+                        <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
+                      </summary>
+                      <div className="p-4 pt-1 border-t border-[#FCD34D]/30 bg-white/50 text-[11px] text-primary leading-relaxed">
+                        {ev.ai_analysis || "No AI analysis available for this document yet. Click 'Analyze with Gemini' to generate."}
+                      </div>
+                    </details>
+
+                    {/* OCR Scan Accordion */}
+                    <details open className="group bg-surface-container-low border border-outline-variant/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                      <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
+                        <div className="flex items-center gap-2">
+                           <FileText size={14} className="text-primary" />
+                           <span className="text-[12px] font-bold text-primary">AI OCR Scan - Extracted Text</span>
+                        </div>
+                        <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
+                      </summary>
+                      <div className="p-4 pt-1 border-t border-outline-variant/30 bg-white/50 text-[11px] text-outline font-mono leading-relaxed whitespace-pre-wrap">
+                        {ev.ocr_text || "No OCR text extracted."}
+                      </div>
+                    </details>
+
+                    {/* Images Accordion */}
+                    <details className="group bg-surface-container-low border border-outline-variant/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                      <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
+                        <div className="flex items-center gap-2">
+                           <Search size={14} className="text-primary" />
+                           <span className="text-[12px] font-bold text-primary">Extracted Images & Seizure Panchnama Photos</span>
+                        </div>
+                        <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
+                      </summary>
+                      <div className="p-4 pt-1 border-t border-outline-variant/30 bg-white/50 text-[11px] text-outline italic">
+                        No images found in this document.
+                      </div>
+                    </details>
+
+                  </div>
+
+                  {/* Revision History UI */}
+                  {idx === 0 && (
+                     <div className="mt-5 pt-5 border-t border-outline-variant/30 pl-2">
+                        <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">IMMUTABLE REVISION HISTORY (ZERO DELETIONS)</p>
+                        
+                        <div className="relative pl-6 pb-6 border-l-2 border-[#0D7A5F]">
+                           <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0D7A5F] flex items-center justify-center text-white"><CheckCircle2 size={10} /></div>
+                           <div className="flex justify-between items-center mb-2">
+                             <span className="text-[11px] font-bold text-primary">ACTIVE</span>
+                             <span className="text-[10px] text-outline">Altered by: <span className="font-bold">{ev.uploaded_by}</span></span>
+                           </div>
+                           <div className="bg-[#F0F3FF] p-3 rounded-lg text-[12px] text-primary border border-outline-variant/30">
+                             Revision Directive: Initial ingest into Blockchain ledger. Cryptographic hash recorded on Polygon Amoy testnet.
+                           </div>
+                        </div>
+                     </div>
+                  )}
+
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

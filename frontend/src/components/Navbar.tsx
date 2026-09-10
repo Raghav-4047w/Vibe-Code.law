@@ -1,98 +1,111 @@
-'use client';
-import Link from 'next/link';
-import { Shield, LogOut, ArrowLeft, ClipboardList, User, BadgeCheck, Scale } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { getUser, logout, SIHUser } from '@/lib/auth';
+"use client";
 
-const ROLE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  Officer:  { bg: 'bg-secondary',    text: 'text-white',   border: 'border-primary' },
-  Reviewer: { bg: 'bg-success', text: 'text-white', border: 'border-green-800' },
-  Judge:    { bg: 'bg-purple-800',  text: 'text-purple-100',  border: 'border-purple-500' },
-};
+import Link from "next/link";
+import { Scale, LogOut, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
-export default function Navbar({ showBack = false }: { showBack?: boolean }) {
-  const [user, setUser] = useState<SIHUser | null>(null);
+export default function Navbar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [userBadge, setUserBadge] = useState("");
 
   useEffect(() => {
-    setUser(getUser());
+    setUserName(sessionStorage.getItem("userName") || "");
+    setUserRole(sessionStorage.getItem("userRole") || "");
+    setUserBadge(sessionStorage.getItem("userBadge") || "");
   }, []);
 
-  const roleStyle = user ? (ROLE_STYLES[user.role] || ROLE_STYLES.Officer) : ROLE_STYLES.Officer;
+  const handleLogout = () => {
+    sessionStorage.clear();
+    window.location.href = "/login";
+  };
+
+  const showProfile = () => {
+    alert(`Logged in Profile:\n\nName: ${userName}\nRole: ${userRole}\nBadge ID: ${userBadge}`);
+  };
+
+  const tabs = [
+    { label: "Case Repository", href: "/", match: (p: string | null) => p === "/" || (p?.startsWith("/case") && !p?.startsWith("/case/new")) },
+    { label: "Audit Trail", href: "/audit", match: (p: string | null) => p?.startsWith("/audit") },
+    { label: "Active Session", href: "/profile", match: (p: string | null) => p?.startsWith("/profile") },
+  ];
 
   return (
-    <header className="border-b border-border shadow-sm">
-      {/* BRANDING HEADER */}
-      <div className="bg-surface text-text-main">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-primary rounded flex items-center justify-center flex-shrink-0 shadow text-white">
-              <Scale className="w-6 h-6 text-accent" />
-            </div>
-            <div>
-              <p className="text-xl font-black tracking-wide leading-snug text-primary uppercase">Digital Evidence Vault</p>
-              <p className="text-xs text-text-secondary leading-none font-medium mt-1">
-                Cryptographically Secured Blockchain Ledger
+    <div className="w-full bg-white border-b border-outline-variant/30 flex flex-col">
+      <div className="flex items-center justify-between px-6 py-3">
+        {/* Left: Branding */}
+        <Link href="/" className="flex items-center space-x-3 cursor-pointer hover:opacity-90">
+          <div className="bg-primary rounded-lg p-2 text-white shadow-sm flex items-center justify-center">
+            <Scale size={20} />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-headline-sm text-primary m-0 font-bold leading-tight">
+              Digital Evidence Locker
+            </h1>
+            <p className="text-label-caps text-outline font-medium tracking-wider text-[10px]">
+              National Judicial & Forensic Authentication Network
+            </p>
+          </div>
+        </Link>
+
+        {/* Middle: Navigation Tabs */}
+        <div className="hidden md:flex items-center gap-2 bg-surface p-1 rounded-xl border border-outline-variant/30 shadow-sm">
+          {tabs.map((tab) => {
+            const isActive = tab.match(pathname);
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`px-5 py-2 rounded-lg text-label-md transition-all border ${
+                  isActive
+                    ? "bg-[#101B31] text-white font-bold border-[#101B31]"
+                    : "bg-white text-primary hover:bg-surface-container font-medium border-outline-variant/30"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Right: User Profile & Actions */}
+        <div className="flex items-center space-x-4">
+          {userName && (
+            <div className="text-right hidden sm:block">
+              <p className="text-label-md text-primary font-semibold m-0 leading-tight">
+                {userName}
+              </p>
+              <p className="text-body-sm text-outline m-0">
+                {userRole} • {userBadge}
               </p>
             </div>
-          </div>
-          <div className="hidden md:flex items-center gap-2 text-text-secondary text-xs border border-border px-3 py-1.5 rounded bg-background">
-            <Shield className="w-4 h-4 text-success" />
-            <span className="font-bold tracking-wider uppercase">BNS / BNSS Compliant</span>
-          </div>
+          )}
+          <button 
+            onClick={showProfile}
+            className="h-9 w-9 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-surface-container-high cursor-pointer hover:opacity-90 transition-opacity"
+            title="Profile Settings"
+          >
+            <User size={16} />
+          </button>
+          <button
+            onClick={handleLogout}
+            className="text-outline hover:text-error transition-colors ml-2"
+            title="Sign Out"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
 
-      {/* NAVIGATION STRIP */}
-      <nav className="bg-primary text-white border-b-4 border-accent">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {showBack ? (
-              <Link href="/"
-                className="flex items-center gap-1.5 bg-secondary hover:bg-primary border border-secondary px-3 py-1.5 rounded text-xs font-bold tracking-wider transition-colors">
-                <ArrowLeft className="w-3.5 h-3.5" /> DASHBOARD
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-accent" />
-                <span className="text-sm font-black tracking-widest text-white hidden sm:block uppercase">
-                  Case Repository
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/audit"
-              className="hidden md:flex items-center gap-1.5 bg-secondary hover:bg-primary border border-secondary px-3 py-1.5 rounded text-xs font-bold tracking-wider transition-colors">
-              <ClipboardList className="w-3.5 h-3.5" /> Audit Log
-            </Link>
-
-            {user && (
-              <div className={`flex items-center gap-2 ${roleStyle.bg} border ${roleStyle.border} rounded px-3 py-1.5 shadow-sm`}>
-                <div className="w-6 h-6 bg-white/20 rounded flex items-center justify-center">
-                  <User className="w-3.5 h-3.5 text-white" />
-                </div>
-                <div className="hidden sm:block">
-                  <p className={`text-xs font-black ${roleStyle.text} leading-none`}>{user.name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <BadgeCheck className={`w-3 h-3 ${roleStyle.text} opacity-80`} />
-                    <span className={`text-[10px] ${roleStyle.text} opacity-80 font-mono uppercase`}>
-                      {user.role} | ID: {user.badge}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <button onClick={logout}
-              title="Sign Out"
-              className="flex items-center gap-1.5 bg-error hover:bg-red-800 border border-error px-3 py-1.5 rounded text-xs font-bold tracking-wider transition-colors text-white shadow-sm">
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">SIGN OUT</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-    </header>
+      {/* Tricolor Indicator Line */}
+      <div className="flex h-1 w-full">
+        <div className="w-1/3 bg-secondary"></div>
+        <div className="w-1/3 bg-white"></div>
+        <div className="w-1/3 bg-tertiary"></div>
+      </div>
+    </div>
   );
 }
