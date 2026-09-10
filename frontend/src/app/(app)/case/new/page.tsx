@@ -24,9 +24,6 @@ export default function RegisterCase() {
     description: "",
     jurisdiction: "",
     date: "",
-    complainant_name: "",
-    complainant_phone: "",
-    accused_names: "",
   });
 
   // Fetch legal sections and load draft
@@ -266,45 +263,12 @@ export default function RegisterCase() {
           </div>
         </div>
 
-        {/* ── STEP 02: PARTIES INVOLVED ── */}
-        <div className="p-8 border-t border-outline-variant/30 bg-surface/50">
-          <div className="flex justify-between items-center mb-8 border-b border-outline-variant/30 pb-3">
-            <div className="flex items-center gap-3">
-              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">02</span>
-              <h2 className="text-headline-sm text-primary font-bold tracking-wide">PARTIES INVOLVED</h2>
-            </div>
-            <span className="text-label-caps text-outline">Statutory Record of Informant & Suspects</span>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-label-md text-primary font-bold mb-1.5">Complainant Name <span className="text-secondary">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><UserIcon className="text-outline-variant" size={16} /></div>
-                <input type="text" value={formData.complainant_name} onChange={(e) => setFormData({ ...formData, complainant_name: e.target.value })} placeholder="e.g. Ananya Roy" className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary" />
-              </div>
-              <p className="text-[11px] text-outline mt-1.5">Primary reporting person or corporate legal representative</p>
-            </div>
-            <div>
-              <label className="block text-label-md text-primary font-bold mb-1.5">Complainant Phone Number <span className="text-secondary">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Phone className="text-outline-variant" size={16} /></div>
-                <input type="text" value={formData.complainant_phone} onChange={(e) => setFormData({ ...formData, complainant_phone: e.target.value })} placeholder="+91 98101 23456" className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary" />
-              </div>
-              <p className="text-[11px] text-outline mt-1.5">For automated statutory dispatch notifications</p>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-label-md text-primary font-bold mb-1.5">Accused Name(s)</label>
-              <input type="text" value={formData.accused_names} onChange={(e) => setFormData({ ...formData, accused_names: e.target.value })} placeholder="e.g. Rohan Sharma, Vikram Malik, Unknown IP Holder 192.168.1.1" className="block w-full px-3 py-3 border border-outline-variant/50 rounded-lg bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary" />
-            </div>
-          </div>
-        </div>
-
-        {/* ── STEP 03: CASE DETAILS ── */}
+        {/* ── STEP 02: CASE DETAILS ── */}
         <div className="p-8 border-t border-outline-variant/30">
           <div className="flex justify-between items-center mb-8 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">
-              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">03</span>
+              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">02</span>
               <h2 className="text-headline-sm text-primary font-bold tracking-wide">CASE DETAILS</h2>
             </div>
             <span className="text-label-caps text-outline">Factual Synopsis & Custody Assignment</span>
@@ -335,11 +299,11 @@ export default function RegisterCase() {
           </div>
         </div>
 
-        {/* 📄 STEP 04: INITIAL EVIDENCE / FIR */}
+        {/* 📄 STEP 03: INITIAL EVIDENCE / FIR */}
         <div className="p-8 border-t border-outline-variant/30">
           <div className="flex justify-between items-center mb-6 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">
-              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">04</span>
+              <span className="bg-primary text-white text-label-caps px-2 py-1 rounded">03</span>
               <h2 className="text-headline-sm text-primary font-bold tracking-wide">INITIAL DOCUMENT</h2>
             </div>
           </div>

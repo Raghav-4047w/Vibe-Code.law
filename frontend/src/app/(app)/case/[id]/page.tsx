@@ -606,6 +606,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                 </div>
               );
               })
+            )}
           </div>
         </div>
       </div>
