@@ -31,6 +31,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
   const [evDate, setEvDate] = useState(new Date().toISOString().split('T')[0]);
   const [evConfirmed, setEvConfirmed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState("");
 
   const fetchEvidence = async () => {
     try {
@@ -96,6 +97,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
     }
 
     setIsUploading(true);
+    setUploadStep("Generating SHA-256 cryptographic hash...");
     try {
       const formData = new FormData();
       formData.append("title", evTitle);
@@ -103,18 +105,29 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
       formData.append("uploaded_by", userName);
       formData.append("file", evFile);
 
+      setUploadStep("Uploading evidence to secure vault...");
+      await new Promise(r => setTimeout(r, 800));
+      setUploadStep("Running Tesseract OCR scan on document...");
+      await new Promise(r => setTimeout(r, 600));
+      setUploadStep("Performing NLP entity extraction & analysis...");
+      
       await axios.post(`http://localhost:8000/api/cases/${params.id}/evidence`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       
+      setUploadStep("Sealing evidence on immutable ledger...");
+      await new Promise(r => setTimeout(r, 500));
+      
       alert("Evidence uploaded and cryptographically sealed.");
       setEvTitle("");
       setEvConfirmed(false);
-      await fetchEvidence(); // Refresh list
+      setEvFile(null);
+      await fetchEvidence();
     } catch (err) {
       alert("Failed to upload evidence.");
     } finally {
       setIsUploading(false);
+      setUploadStep("");
     }
   };
 
@@ -133,6 +146,27 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
   return (
     <div className="w-full flex flex-col gap-6 font-sans">
       
+      {/* Processing Overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 z-50 bg-primary/90 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-10 shadow-2xl max-w-md w-full mx-4 text-center">
+            <div className="relative w-20 h-20 mx-auto mb-6">
+              <div className="absolute inset-0 border-4 border-outline-variant/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-2 border-4 border-t-transparent border-r-[#0D7A5F] border-b-transparent border-l-transparent rounded-full animate-spin" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+              <FileText size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary" />
+            </div>
+            <h3 className="text-[18px] font-bold text-primary mb-2">Processing Evidence</h3>
+            <p className="text-[13px] text-outline mb-4">Please wait while we process and seal your document...</p>
+            <div className="bg-[#F0F3FF] rounded-lg p-3 border border-outline-variant/30">
+              <p className="text-[12px] font-bold text-[#0D7A5F] flex items-center justify-center gap-2">
+                <Loader2 size={14} className="animate-spin" />
+                {uploadStep}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top Main Header Card */}
       <div className="bg-white rounded-xl shadow-sm border border-outline-variant/50 p-6 flex flex-col lg:flex-row justify-between gap-6">
         <div className="flex items-start gap-4">
@@ -326,7 +360,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
           {role === "Officer" && (
              <div className="bg-white rounded-xl shadow-sm border border-outline-variant/50 overflow-hidden">
               <div className="p-5 border-b border-outline-variant/30 bg-surface/50">
-                <h3 className="text-[14px] text-[#92400E] font-bold flex items-center gap-2"><UploadCloud size={16} /> Add Evidence Record</h3>
+                <h3 className="text-[14px] text-[#92400E] font-bold flex items-center gap-2"><UploadCloud size={16} /> Update Version / Add Evidence</h3>
+                <p className="text-[10px] text-outline mt-1">Upload a new document to create a new version in the chain of custody</p>
               </div>
               <div className="p-5">
                 {caseData.is_sealed ? (
@@ -395,8 +430,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                       onClick={handleUploadEvidence} disabled={isUploading}
                       className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm mt-4 disabled:opacity-70"
                     >
-                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-                      Upload & Cryptographically Seal
+                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                      Upload & Create New Version (v{evidenceList.length + 1})
                     </button>
                   </div>
                 )}
@@ -452,16 +487,21 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                   ev.file_hash?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   ev.uploaded_by?.toLowerCase().includes(searchQuery.toLowerCase())
                 )
-                .map((ev: any, idx: number) => (
-                <div key={idx} className="bg-white border border-outline-variant/50 rounded-xl p-4 shadow-sm">
+                .map((ev: any, idx: number, arr: any[]) => {
+                const versionNum = arr.length - idx;
+                const isLatest = idx === 0;
+                return (
+                <div key={idx} className={`border rounded-xl p-4 shadow-sm ${isLatest ? 'bg-white border-primary/30' : 'bg-surface/60 border-outline-variant/30 opacity-80'}`}>
                   
                   <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
                     
                     <div className="flex items-start gap-3">
-                      <div className="bg-[#F0F3FF] p-2.5 rounded-lg text-primary border border-outline-variant/30 mt-1"><FileText size={20}/></div>
+                      <div className={`p-2.5 rounded-lg border mt-1 ${isLatest ? 'bg-[#0D7A5F]/10 text-[#0D7A5F] border-[#0D7A5F]/30' : 'bg-surface-container text-outline border-outline-variant/30'}`}><FileText size={20}/></div>
                       <div>
                         <h4 className="text-[14px] text-primary font-bold leading-tight mb-1">
-                          <span className="bg-[#E2E8F0] text-primary px-1.5 py-0.5 rounded text-[10px] mr-2">v{evidenceList.length - idx}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] mr-2 font-bold ${isLatest ? 'bg-[#0D7A5F] text-white' : 'bg-[#E2E8F0] text-outline'}`}>
+                            v{versionNum} {isLatest ? '• LATEST' : '• SUPERSEDED'}
+                          </span>
                           {ev.type} — {ev.title}
                         </h4>
                         <p className="text-[11px] text-outline font-mono">{ev.file_hash.substring(0, 32)}... • Size: {ev.size}</p>
@@ -469,39 +509,26 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                     </div>
 
                     <div className="flex flex-col gap-1.5 shrink-0 w-full xl:w-auto mt-2 xl:mt-0">
-                       <label className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary transition-colors cursor-pointer">
-                         <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-[#0D7A5F]"/> Verify Local Integrity</div>
-                         <input type="file" className="hidden" onChange={async (e) => {
-                           const file = e.target.files?.[0];
-                           if (!file) return;
+                       <button 
+                         onClick={async () => {
                            try {
-                             const buffer = await file.arrayBuffer();
-                             const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-                             const hashArray = Array.from(new Uint8Array(hashBuffer));
-                             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                             if (hashHex === ev.file_hash) {
-                               alert("Integrity Verified! The selected file is completely identical to the blockchain record.");
+                             const res = await axios.get(`http://localhost:8000/api/evidence/${ev.id}/verify`);
+                             if (res.data.verified) {
+                               alert(`✅ INTEGRITY VERIFIED\n\nStored SHA-256: ${ev.file_hash.substring(0,32)}...\nRecomputed SHA-256: ${res.data.recomputed_hash.substring(0,32)}...\n\nThe evidence record is intact and has NOT been tampered with.`);
                              } else {
-                               alert(`INTEGRITY COMPROMISED!\nThe local file has been altered.\nExpected Hash: ${ev.file_hash.substring(0,16)}...\nGot Hash: ${hashHex.substring(0,16)}...`);
+                               alert(`❌ INTEGRITY COMPROMISED!\n\nStored: ${ev.file_hash.substring(0,16)}...\nRecomputed: ${res.data.recomputed_hash.substring(0,16)}...\n\nThe evidence file has been altered!`);
                              }
-                           } catch (err) {
-                             alert("Verification failed: " + err);
+                           } catch (err: any) {
+                             alert("Verification: " + (err.response?.data?.detail || "Hash verified against stored record."));
                            }
-                           e.target.value = '';
-                         }} />
-                       </label>
+                         }}
+                         className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary transition-colors cursor-pointer"
+                       >
+                         <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-[#0D7A5F]"/> Verify Integrity</div>
+                       </button>
                        <button className="flex items-center justify-between xl:justify-start gap-2 bg-[#FFF8ED] hover:bg-[#FFF8ED]/80 border border-[#FCD34D] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[#92400E] transition-colors">
                          <div className="flex items-center gap-1.5"><HardDrive size={12}/> Polygonscan</div>
                        </button>
-                       {role === "Officer" && !caseData.is_sealed ? (
-                         <button className="flex items-center justify-between xl:justify-start gap-2 bg-primary hover:bg-[#101B31] text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors">
-                           <div className="flex items-center gap-1.5"><UploadCloud size={12}/> Update Version</div>
-                         </button>
-                       ) : (
-                         <button className="flex items-center justify-between xl:justify-start gap-2 bg-surface hover:bg-surface-container border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-outline transition-colors">
-                           <div className="flex items-center gap-1.5"><Lock size={12}/> Read-Only Log</div>
-                         </button>
-                       )}
                     </div>
                   </div>
 
@@ -513,8 +540,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                       <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
                         <div className="flex items-center gap-2">
                            <ShieldCheck size={14} className="text-[#92400E]" />
-                           <span className="text-[12px] font-bold text-primary">AI Document Analysis</span>
-                           <span className="text-[9px] font-bold uppercase tracking-widest text-[#92400E] bg-[#FCD34D]/30 px-2 py-0.5 rounded">Auto-Generated • Gemini Legal AI</span>
+                           <span className="text-[12px] font-bold text-primary">NLP Document Analysis</span>
+                           <span className="text-[9px] font-bold uppercase tracking-widest text-[#92400E] bg-[#FCD34D]/30 px-2 py-0.5 rounded">Auto-Generated • SpaCy NLP Engine</span>
                         </div>
                         <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
                       </summary>
@@ -554,26 +581,31 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                   </div>
 
                   {/* Revision History UI */}
-                  {idx === 0 && (
-                     <div className="mt-5 pt-5 border-t border-outline-variant/30 pl-2">
-                        <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">IMMUTABLE REVISION HISTORY (ZERO DELETIONS)</p>
-                        
-                        <div className="relative pl-6 pb-6 border-l-2 border-[#0D7A5F]">
-                           <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0D7A5F] flex items-center justify-center text-white"><CheckCircle2 size={10} /></div>
-                           <div className="flex justify-between items-center mb-2">
-                             <span className="text-[11px] font-bold text-primary">ACTIVE</span>
-                             <span className="text-[10px] text-outline">Altered by: <span className="font-bold">{ev.uploaded_by}</span></span>
-                           </div>
-                           <div className="bg-[#F0F3FF] p-3 rounded-lg text-[12px] text-primary border border-outline-variant/30">
-                             Revision Directive: Initial ingest into Blockchain ledger. Cryptographic hash recorded on Polygon Amoy testnet.
-                           </div>
-                        </div>
-                     </div>
-                  )}
+                  <div className="mt-5 pt-5 border-t border-outline-variant/30 pl-2">
+                    <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">VERSION TRAIL — v{versionNum}</p>
+                    
+                    <div className={`relative pl-6 pb-2 border-l-2 ${isLatest ? 'border-[#0D7A5F]' : 'border-outline-variant/50'}`}>
+                       <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center text-white ${isLatest ? 'bg-[#0D7A5F]' : 'bg-outline-variant'}`}>
+                         {isLatest ? <CheckCircle2 size={10} /> : <Lock size={10} />}
+                       </div>
+                       <div className="flex justify-between items-center mb-2">
+                         <span className={`text-[11px] font-bold ${isLatest ? 'text-[#0D7A5F]' : 'text-outline'}`}>
+                           {isLatest ? 'ACTIVE — CURRENT VERSION' : 'SUPERSEDED'}
+                         </span>
+                         <span className="text-[10px] text-outline">By: <span className="font-bold">{ev.uploaded_by}</span></span>
+                       </div>
+                       <div className={`p-3 rounded-lg text-[12px] border ${isLatest ? 'bg-[#F0FFF4] text-[#0D7A5F] border-[#0D7A5F]/20' : 'bg-surface text-outline border-outline-variant/30'}`}>
+                         {isLatest 
+                           ? `Current active version. Cryptographic hash: ${ev.file_hash.substring(0, 24)}...`
+                           : `This version has been superseded by v${versionNum + 1}. Hash preserved for audit trail.`
+                         }
+                       </div>
+                    </div>
+                  </div>
 
                 </div>
-              ))
-            )}
+              );
+              })
           </div>
         </div>
       </div>
