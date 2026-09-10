@@ -42,6 +42,50 @@ def create_audit(db: Session, user_id: int, action: str, details: str, tx: str =
 #  AUTH
 # ═══════════════════════════════════════════
 
+@app.post("/api/auth/send-registration-otp")
+def send_registration_otp(body: dict):
+    badge = body.get("badge_id", "").strip()
+    if not badge:
+        raise HTTPException(400, "Badge ID required")
+        
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.ethereal.email")
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    smtp_user = os.environ.get("SMTP_USER", "msfx77wiuhj2cp74@ethereal.email")
+    smtp_pass = os.environ.get("SMTP_PASS", "kwMA2rENZz4MSVQZmz")
+    
+    import random
+    reset_otp = str(random.randint(100000, 999999))
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"Digital Evidence Locker <{smtp_user}>"
+        msg['To'] = f"{badge}@dept.gov.in"
+        msg['Subject'] = f"Registration OTP - {reset_otp}"
+        
+        body_text = f"""
+        Welcome to the Judicial Blockchain Network.
+        
+        Your registration OTP for Service ID {badge} is: {reset_otp}
+        
+        This email was sent via a live SMTP integration. View live inbox at:
+        https://ethereal.email/login (Use {smtp_user} and {smtp_pass})
+        """
+        msg.attach(MIMEText(body_text, 'plain'))
+        
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        
+        return {
+            "message": "OTP Dispatched",
+            "otp_sent": True,
+            "mock_otp": reset_otp # Returning it in response for Hackathon UI validation ease since it's a demo
+        }
+    except Exception as e:
+        raise HTTPException(500, f"SMTP Error: {str(e)}")
+
 @app.post("/api/auth/register")
 def register(body: dict, db: Session = Depends(get_db)):
     badge = body.get("badge_id", "").strip()

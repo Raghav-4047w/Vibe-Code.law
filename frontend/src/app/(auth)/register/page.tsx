@@ -17,12 +17,39 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [expectedOtp, setExpectedOtp] = useState("");
+
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!badgeId || !password || !name) {
       setError("Please fill all required fields");
       return;
     }
+    setLoading(true);
+    setError("");
+    
+    try {
+      const res = await axios.post("http://localhost:8000/api/auth/send-registration-otp", {
+        badge_id: badgeId
+      });
+      setExpectedOtp(res.data.mock_otp); // Stored in state for hackathon verification ease
+      setOtpStep(true);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to send OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpValue !== expectedOtp) {
+      setError("Invalid OTP entered. Please check Ethereal inbox.");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     
@@ -36,7 +63,7 @@ export default function RegisterPage() {
       
       setSuccess(true);
       setTimeout(() => {
-        router.push("/login");
+        window.location.href = "/login";
       }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Registration failed.");
@@ -72,15 +99,15 @@ export default function RegisterPage() {
       </div>
 
       {/* Main Register Card */}
-      <form onSubmit={handleRegister} className="bg-white rounded-[16px] shadow-xl border border-outline-variant/20 w-full p-8 relative overflow-hidden">
+      <form onSubmit={otpStep ? handleVerifyRegister : handleRequestOtp} className="bg-white rounded-[16px] shadow-xl border border-outline-variant/20 w-full p-8 relative overflow-hidden">
         
         {/* Shield Icon & Title */}
         <div className="flex flex-col items-center mb-8">
           <div className="bg-surface-container w-12 h-12 rounded-xl flex items-center justify-center mb-4">
             <UserPlus className="text-primary" size={24} />
           </div>
-          <h2 className="text-headline-lg text-primary font-bold">Register Identity</h2>
-          <p className="text-body-sm text-outline mt-1">Enroll your hardware token or statutory ID</p>
+          <h2 className="text-headline-lg text-primary font-bold">{otpStep ? "Verify OTP" : "Register Identity"}</h2>
+          <p className="text-body-sm text-outline mt-1">{otpStep ? "Check Ethereal inbox for verification code" : "Enroll your hardware token or statutory ID"}</p>
         </div>
 
         {/* Role Selector */}
@@ -119,91 +146,118 @@ export default function RegisterPage() {
 
         {error && <div className="mb-4 text-error text-body-sm font-bold bg-error-container p-3 rounded-lg">{error}</div>}
 
-        {/* Form Inputs */}
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="block text-label-md text-primary mb-1.5">
-              Full Name (Official Record)
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="text-outline-variant" size={18} />
+        {otpStep ? (
+          <div className="mb-6 space-y-4">
+            <div className="bg-[#F0F3FF] border border-outline-variant/50 rounded-lg p-4 text-left text-sm text-primary">
+              <p className="font-bold mb-2 text-secondary">Live Demo Testing Inbox:</p>
+              <p><strong>URL:</strong> <a href="https://ethereal.email/login" target="_blank" rel="noreferrer" className="text-blue-600 underline">ethereal.email/login</a></p>
+              <p><strong>Email:</strong> msfx77wiuhj2cp74@ethereal.email</p>
+              <p><strong>Pass:</strong> kwMA2rENZz4MSVQZmz</p>
+            </div>
+            <div>
+              <label className="block text-label-md text-primary mb-1">Enter 6-Digit OTP</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <KeyRound className="text-outline-variant" size={18} />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={otpValue}
+                  onChange={(e) => setOtpValue(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all font-mono tracking-widest"
+                  placeholder="e.g. 123456"
+                />
               </div>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Insp. Vikram Rathore"
-                className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all"
-              />
             </div>
           </div>
+        ) : (
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-label-md text-primary mb-1.5">
+                Full Name (Official Record)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="text-outline-variant" size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Insp. Vikram Rathore"
+                  className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all"
+                />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-label-md text-primary mb-1.5">
-              {role} ID / Service ID
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <IdCard className="text-outline-variant" size={18} />
+            <div>
+              <label className="block text-label-md text-primary mb-1.5">
+                {role} ID / Service ID
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <IdCard className="text-outline-variant" size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={badgeId}
+                  onChange={(e) => setBadgeId(e.target.value)}
+                  placeholder={role === "Officer" ? "DL-POL-2026-XXXX" : role === "Analyst" ? "DEL-FSL-XX" : "DL-CT-NXXX"}
+                  className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all"
+                />
               </div>
-              <input
-                type="text"
-                value={badgeId}
-                onChange={(e) => setBadgeId(e.target.value)}
-                placeholder={role === "Officer" ? "DL-POL-2026-XXXX" : role === "Analyst" ? "DEL-FSL-XX" : "DL-CT-NXXX"}
-                className="block w-full pl-10 pr-3 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all"
-              />
             </div>
-          </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <label className="block text-label-md text-primary">New Security Passcode / Token PIN</label>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <KeyRound className="text-outline-variant" size={18} />
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-label-md text-primary">New Security Passcode / Token PIN</label>
               </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••••••"
-                className="block w-full pl-10 pr-10 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all font-mono tracking-widest"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-outline-variant hover:text-primary"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <KeyRound className="text-outline-variant" size={18} />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••••••"
+                  className="block w-full pl-10 pr-10 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all font-mono tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-outline-variant hover:text-primary"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Checkbox */}
-        <div className="bg-[#F8FAFC] rounded-lg p-4 border border-outline-variant/30 flex items-start gap-3 mb-6">
-          <input
-            type="checkbox"
-            required
-            className="mt-0.5 w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
-            id="ack"
-          />
-          <label htmlFor="ack" className="text-body-sm text-on-surface-variant leading-relaxed">
-            I confirm these details are accurate and acknowledge that fake statutory registrations are punishable under the Information Technology Act.
-          </label>
-        </div>
+        {!otpStep && (
+          <div className="bg-[#F8FAFC] rounded-lg p-4 border border-outline-variant/30 flex items-start gap-3 mb-6">
+            <input
+              type="checkbox"
+              required
+              className="mt-0.5 w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+              id="ack"
+            />
+            <label htmlFor="ack" className="text-body-sm text-on-surface-variant leading-relaxed">
+              I confirm these details are accurate and acknowledge that fake statutory registrations are punishable under the Information Technology Act.
+            </label>
+          </div>
+        )}
 
         {/* Register Button */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-3.5 flex items-center justify-center gap-2 text-label-md font-bold transition-all shadow-md mb-6 disabled:opacity-70"
+          className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 mb-4"
         >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : "Create Identity"}
-          {!loading && <span className="text-lg leading-none">→</span>}
+          {loading ? <Loader2 className="animate-spin" size={20} /> : otpStep ? "Verify & Complete Registration" : "Request Verification OTP"}
         </button>
 
         <div className="text-center mt-4">
