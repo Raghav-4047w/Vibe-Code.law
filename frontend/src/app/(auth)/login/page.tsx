@@ -237,7 +237,7 @@ export default function LoginPage() {
             ) : isForgotPassword ? (
               "Request Recovery Link"
             ) : (
-              <>Sign In Securely <span className="text-lg leading-none">â†’</span></>
+              <>Sign In Securely &rarr;</>
             )}
           </button>
 

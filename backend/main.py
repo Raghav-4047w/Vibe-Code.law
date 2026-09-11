@@ -33,6 +33,21 @@ except:
 # Create DB tables
 Base.metadata.create_all(bind=engine)
 
+# Auto-seed demo users if DB is fresh (no users exist)
+try:
+    from init_db import init_db
+    _check_db = SessionLocal()
+    _user_count = _check_db.query(models.User).count()
+    _check_db.close()
+    if _user_count == 0:
+        print("[Startup] Fresh database detected. Seeding demo users...")
+        init_db()
+        print("[Startup] Demo users seeded successfully!")
+    else:
+        print(f"[Startup] Database has {_user_count} users. Skipping seed.")
+except Exception as _seed_err:
+    print(f"[Startup] Seed warning (non-fatal): {_seed_err}")
+
 app = FastAPI(title="Digital Evidence Locker API")
 
 app.add_middleware(
