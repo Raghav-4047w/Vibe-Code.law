@@ -190,7 +190,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
            </div>
         </div>
 
-        {/* Role / Access Badge &mdash; compact & separate */}
+        {/* Role / Access Badge — compact & separate */}
         <div className="flex flex-col items-end gap-2 shrink-0">
           <div className="flex items-center gap-2 bg-surface rounded-xl border border-outline-variant/50 px-4 py-2">
             <span className="text-[10px] text-outline tracking-widest font-bold uppercase">Session Access</span>
@@ -509,7 +509,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                           <span className={`px-1.5 py-0.5 rounded text-[10px] mr-2 font-bold ${isLatest ? 'bg-[#0D7A5F] text-white' : 'bg-[#E2E8F0] text-outline'}`}>
                             v{versionNum} {isLatest ? '&bull; LATEST' : '&bull; SUPERSEDED'}
                           </span>
-                          {ev.type} &mdash; {ev.title}
+                          {ev.type} — {ev.title}
                         </h4>
                         <p className="text-[11px] text-outline font-mono">Size: {ev.size}</p>
                       </div>
@@ -733,7 +733,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
 
                   {/* Revision History UI */}
                   <div className="mt-5 pt-5 border-t border-outline-variant/30 pl-2">
-                    <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">VERSION TRAIL &mdash; v{versionNum}</p>
+                    <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">VERSION TRAIL — v{versionNum}</p>
                     
                     <div className={`relative pl-6 pb-2 border-l-2 ${isLatest ? 'border-[#0D7A5F]' : 'border-outline-variant/50'}`}>
                        <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center text-white ${isLatest ? 'bg-[#0D7A5F]' : 'bg-outline-variant'}`}>
@@ -741,7 +741,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                        </div>
                        <div className="flex justify-between items-center mb-2">
                          <span className={`text-[11px] font-bold ${isLatest ? 'text-[#0D7A5F]' : 'text-outline'}`}>
-                           {isLatest ? 'ACTIVE &mdash; CURRENT VERSION' : 'SUPERSEDED'}
+                           {isLatest ? 'ACTIVE — CURRENT VERSION' : 'SUPERSEDED'}
                          </span>
                          <span className="text-[10px] text-outline">By: <span className="font-bold">{ev.uploaded_by}</span></span>
                        </div>

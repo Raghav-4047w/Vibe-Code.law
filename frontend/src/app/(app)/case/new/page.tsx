@@ -277,7 +277,7 @@ export default function RegisterCase() {
             {/* Selected Sections */}
             <div className="min-h-[50px] p-2 border border-outline-variant/50 rounded-lg bg-[#F0F3FF]/50 flex flex-wrap gap-2 items-center">
               {selectedSections.length === 0 && (
-                <span className="text-outline text-body-sm px-2">No sections selected &mdash; use Quick Add or search below</span>
+                <span className="text-outline text-body-sm px-2">No sections selected — use Quick Add or search below</span>
               )}
               {selectedSections.map((code) => {
                 const section = [...allSections.post_2024, ...allSections.pre_2024].find((s: any) => s.code === code);
@@ -350,7 +350,7 @@ export default function RegisterCase() {
                 <div className="w-10 h-10 bg-primary rounded-lg text-white flex items-center justify-center font-bold">IO</div>
                 <div>
                   <p className="text-label-md text-primary font-bold leading-tight flex items-center gap-2">
-                    {userName} &mdash; Self
+                    {userName} — Self
                     <span className="bg-tertiary-fixed text-on-tertiary-fixed-variant text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">LOGGED IN / ACTIVE TOKEN</span>
                   </p>
                   <p className="text-[11px] text-outline mt-0.5">

@@ -134,7 +134,7 @@ export default function AuditTrail() {
               Immutable Audit Trail
             </h1>
             <p className="text-body-md text-outline mt-1 flex items-center gap-2">
-              <ShieldCheck size={14} className="text-tertiary-fixed-dim" /> Tamper-evident statutory record â€¢ {logs.length} total actions logged
+              <ShieldCheck size={14} className="text-tertiary-fixed-dim" /> Tamper-evident statutory record • {logs.length} total actions logged
             </p>
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function AuditTrail() {
           <h3 className="text-label-caps text-primary font-bold tracking-widest">
             CRYPTOGRAPHIC ACTION LEDGER
           </h3>
-          <span className="text-[11px] text-outline font-mono">SHA-256 Tamper-Evident â€¢ Read-Only Immutable Log</span>
+          <span className="text-[11px] text-outline font-mono">SHA-256 Tamper-Evident • Read-Only Immutable Log</span>
         </div>
 
         {loading ? (
@@ -269,7 +269,7 @@ export default function AuditTrail() {
                           </div>
                           <div>
                             <p className="text-label-md text-primary font-bold">{logUserName}</p>
-                            <p className="text-[11px] text-outline mt-0.5">{logUserRole} â€¢ {logUserBadge}</p>
+                            <p className="text-[11px] text-outline mt-0.5">{logUserRole} • {logUserBadge}</p>
                           </div>
                         </div>
                       </td>
