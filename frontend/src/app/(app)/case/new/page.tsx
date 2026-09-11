@@ -431,7 +431,7 @@ export default function RegisterCase() {
             <button onClick={handleSaveDraft} className="bg-white text-primary px-6 py-2.5 rounded-lg text-label-md font-bold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-sm">
               <Save size={16} /> Save Draft
             </button>
-            <button onClick={handleSubmit} disabled={loading || !confirmed} className={	ext-white px-8 py-2.5 rounded-lg text-label-md font-bold flex items-center gap-2 transition-colors shadow-md disabled:opacity-70 }>
+            <button onClick={handleSubmit} disabled={loading || !confirmed} className={`text-white px-8 py-2.5 rounded-lg text-label-md font-bold flex items-center gap-2 transition-colors shadow-md disabled:opacity-70 ${confirmed ? "bg-secondary hover:bg-[#b55c00]" : "bg-outline-variant disabled:cursor-not-allowed"}`}>
               {loading ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
               {loading ? "Registering..." : "Register Case"}
             </button>
