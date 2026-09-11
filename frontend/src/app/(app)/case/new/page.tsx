@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { FileText, Save, Plus, ShieldAlert, Loader2, X, Phone, User as UserIcon, CheckCircle2 } from "lucide-react";
@@ -162,8 +162,8 @@ export default function RegisterCase() {
 
   // Quick-add buttons (top 5 most common)
   const quickAdds = legalEra === "post"
-    ? ["BNS Â§ 111", "BNS Â§ 318(4)", "BNS Â§ 308", "IT Act Â§ 43", "IT Act Â§ 66"]
-    : ["IPC Â§ 420", "IPC Â§ 302", "IPC Â§ 379", "IPC Â§ 406", "IPC Â§ 506"];
+    ? ["BNS S. 111", "BNS S. 318(4)", "BNS S. 308", "IT Act S. 43", "IT Act S. 66"]
+    : ["IPC S. 420", "IPC S. 302", "IPC S. 379", "IPC S. 406", "IPC S. 506"];
 
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 relative">
@@ -202,7 +202,7 @@ export default function RegisterCase() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2 text-label-md text-outline">
           <Link href="/" className="hover:text-primary transition-colors">Cases</Link>
-          <span>â€º</span>
+          <span>/</span>
           <span className="text-primary font-medium">Register New Case</span>
         </div>
         <div className="flex items-center gap-3">
@@ -277,7 +277,7 @@ export default function RegisterCase() {
             {/* Selected Sections */}
             <div className="min-h-[50px] p-2 border border-outline-variant/50 rounded-lg bg-[#F0F3FF]/50 flex flex-wrap gap-2 items-center">
               {selectedSections.length === 0 && (
-                <span className="text-outline text-body-sm px-2">No sections selected â€” use Quick Add or search below</span>
+                <span className="text-outline text-body-sm px-2">No sections selected &mdash; use Quick Add or search below</span>
               )}
               {selectedSections.map((code) => {
                 const section = [...allSections.post_2024, ...allSections.pre_2024].find((s: any) => s.code === code);
@@ -316,7 +316,7 @@ export default function RegisterCase() {
                     <button key={s.code} onClick={() => addSection(s.code)} className="w-full text-left px-4 py-2.5 hover:bg-surface-container transition-colors flex justify-between items-center border-b border-outline-variant/10 last:border-0">
                       <div>
                         <span className="text-label-md text-primary font-bold">{s.code}</span>
-                        <span className="text-body-sm text-outline ml-2">â€” {s.title}</span>
+                        <span className="text-body-sm text-outline ml-2">- {s.title}</span>
                       </div>
                       <span className="text-[9px] text-outline bg-surface-container px-1.5 py-0.5 rounded uppercase">{s.category}</span>
                     </button>
@@ -350,11 +350,11 @@ export default function RegisterCase() {
                 <div className="w-10 h-10 bg-primary rounded-lg text-white flex items-center justify-center font-bold">IO</div>
                 <div>
                   <p className="text-label-md text-primary font-bold leading-tight flex items-center gap-2">
-                    {userName} â€” Self
+                    {userName} &mdash; Self
                     <span className="bg-tertiary-fixed text-on-tertiary-fixed-variant text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">LOGGED IN / ACTIVE TOKEN</span>
                   </p>
                   <p className="text-[11px] text-outline mt-0.5">
-                    {userBadge} â€¢ Root Key Carrier
+                     {userBadge} &bull; Root Key Carrier
                   </p>
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function RegisterCase() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-surface-tint flex items-center justify-center text-tertiary-fixed"><ShieldAlert size={16} /></div>
             <div>
-              <p className="text-label-md text-white font-bold leading-tight">Case Registration Intake â€¢ Ready to Submit</p>
+              <p className="text-label-md text-white font-bold leading-tight">Case Registration Intake &bull; Ready to Submit</p>
               <p className="text-[11px] text-primary-fixed-dim m-0">Cryptographically Secured Case Dossier Genesis</p>
             </div>
           </div>

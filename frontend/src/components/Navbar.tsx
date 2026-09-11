@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { Scale, LogOut, User, Shield, BadgeCheck } from "lucide-react";
@@ -43,7 +43,7 @@ export default function Navbar() {
   const tabs = [
     { label: "Case Repository", href: "/", match: (p: string | null) => p === "/" || (p?.startsWith("/case") && !p?.startsWith("/case/new")) },
     { label: "Audit Trail", href: "/audit", match: (p: string | null) => p?.startsWith("/audit") },
-    { label: "â›“ Blockchain Ledger", href: "/blockchain", match: (p: string | null) => p?.startsWith("/blockchain") },
+    { label: "Blockchain Ledger", href: "/blockchain", match: (p: string | null) => p?.startsWith("/blockchain") },
   ];
 
   return (
@@ -142,7 +142,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Indian Tricolor Strip â€” Saffron | White | Green */}
+      {/* Indian Tricolor Strip - Saffron | White | Green */}
       <div className="flex h-[3px] w-full">
         <div style={{ width: "33.33%", backgroundColor: "#FF9933" }} />
         <div style={{ width: "33.34%", backgroundColor: "#FFFFFF", outline: "1px solid #e5e7eb" }} />
