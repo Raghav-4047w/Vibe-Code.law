@@ -60,21 +60,21 @@ export default function Dashboard() {
                <div className="flex items-center gap-1.5 text-label-caps text-outline mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-secondary"></div> INVESTIGATING
                </div>
-               <p className="text-headline-md text-secondary m-0">{cases.filter(c => c.status === "Under Investigation" || !c.is_sealed).length}</p>
+               <p className="text-headline-md text-secondary m-0">{cases.filter(c => !c.is_sealed && c.status !== "Chargesheet Filed").length}</p>
                <p className="text-[10px] text-outline">Active Seizures</p>
              </div>
              <div>
                <div className="flex items-center gap-1.5 text-label-caps text-outline mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> FILED
                </div>
-               <p className="text-headline-md text-primary m-0">{cases.filter(c => c.status === "Chargesheet Filed" || c.is_sealed).length}</p>
+               <p className="text-headline-md text-primary m-0">{cases.filter(c => !c.is_sealed && c.status === "Chargesheet Filed").length}</p>
                <p className="text-[10px] text-outline">Sec 173 Dossiers</p>
              </div>
              <div>
                <div className="flex items-center gap-1.5 text-label-caps text-outline mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-error"></div> SEALED
                </div>
-               <p className="text-headline-md text-primary m-0">{cases.filter(c => c.status === "Sealed").length}</p>
+               <p className="text-headline-md text-primary m-0">{cases.filter(c => c.is_sealed).length}</p>
                <p className="text-[10px] text-outline">Immutable Vault</p>
              </div>
            </div>
