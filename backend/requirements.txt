@@ -1,10 +1,15 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-passlib[bcrypt]
-pyjwt
 python-multipart
+bcrypt
 python-dotenv
+google-genai
 web3
 eth-account
+pymupdf
 reportlab
+spacy
+sumy
+requests
+pillow
