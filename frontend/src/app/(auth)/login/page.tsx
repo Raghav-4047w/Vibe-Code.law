@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Shield, IdCard, KeyRound, Eye, EyeOff, Gavel, Loader2, Lock } from "lucide-react";
@@ -253,6 +253,24 @@ export default function LoginPage() {
               </button>
             )}
           </div>
+
+          {/* Quick Demo Login */}
+          {!isForgotPassword && (
+            <div className="mt-8 border-t border-outline-variant/30 pt-4">
+              <p className="text-[10px] text-outline font-bold uppercase tracking-widest text-center mb-3">Hackathon Quick Demo Login</p>
+              <div className="flex gap-2 justify-center">
+                <button type="button" onClick={() => { setRole("Officer"); setBadgeId("DL-POL-2024-8842"); setPassword("password"); }} className="bg-[#F0F3FF] hover:bg-[#E2E8F0] text-primary px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors">
+                  Demo Officer
+                </button>
+                <button type="button" onClick={() => { setRole("Analyst"); setBadgeId("DEL-FSL-09"); setPassword("password"); }} className="bg-[#F0F3FF] hover:bg-[#E2E8F0] text-primary px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors">
+                  Demo Analyst
+                </button>
+                <button type="button" onClick={() => { setRole("Judge"); setBadgeId("DL-CT-N001"); setPassword("password"); }} className="bg-[#F0F3FF] hover:bg-[#E2E8F0] text-primary px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors">
+                  Demo Judge
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       </form>

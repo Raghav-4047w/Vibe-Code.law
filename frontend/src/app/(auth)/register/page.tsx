@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Shield, IdCard, KeyRound, Eye, EyeOff, Gavel, UserPlus, Loader2, User } from "lucide-react";
@@ -40,8 +40,12 @@ export default function RegisterPage() {
         badge_id: badgeId,
         email: email
       });
-      setExpectedOtp(res.data.mock_otp || ""); // Only populated in dev/demo mode
+      const receivedOtp = res.data.mock_otp || "";
+      setExpectedOtp(receivedOtp); // Only populated in dev/demo mode
+      setOtpValue(receivedOtp);
       setOtpStep(true);
+      alert(`[Hackathon Demo] OTP Sent!\n\nFor demo purposes, your OTP is: ${receivedOtp}\nIt has been auto-filled for you.`);
+
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to send OTP.");
     } finally {

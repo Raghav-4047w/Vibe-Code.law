@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: sih-evidence-locker-backend
+    env: python
+    region: singapore
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: WALLET_PRIVATE_KEY
+        sync: false
+    disk:
+      name: evidence_locker_data
+      mountPath: /opt/render/project/src/backend/uploads
+      sizeGB: 1
