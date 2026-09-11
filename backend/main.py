@@ -650,30 +650,6 @@ def get_audit_logs(skip: int = 0, limit: int = 200, db: Session = Depends(get_db
 #  HASH VERIFICATION
 # ═══════════════════════════════════════════
 
-@app.get("/api/evidence/{evidence_id}/verify")
-def verify_evidence_integrity(evidence_id: int, db: Session = Depends(get_db)):
-    import os, glob, hashlib
-    ev = db.query(models.Evidence).filter(models.Evidence.id == evidence_id).first()
-    if not ev:
-        raise HTTPException(404, "Evidence not found")
-        
-    files = glob.glob(f"uploads/{ev.file_hash}.*")
-    if not files:
-        return {"verified": False, "recomputed_hash": None, "note": "File missing from disk. Tampering detected!"}
-        
-    with open(files[0], "rb") as f:
-        contents = f.read()
-    recomputed_hash = hashlib.sha256(contents).hexdigest()
-    
-    return {"verified": recomputed_hash == ev.file_hash, "recomputed_hash": recomputed_hash, "stored_hash": ev.file_hash}
-
-# ═══════════════════════════════════════════
-#  PDF REPORT GENERATION
-# ═══════════════════════════════════════════
-
-from fpdf import FPDF
-from fastapi.responses import Response
-
 @app.get("/api/files/{file_hash}")
 def download_file(file_hash: str):
     import os
