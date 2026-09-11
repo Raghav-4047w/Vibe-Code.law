@@ -522,9 +522,18 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                              const res = await axios.get(`/api/evidence/${ev.id}/verify`);
                              const d = res.data;
                              const diskOk = d.disk_verified ? "✅ PASS" : "❌ FAIL";
-                             const chainOk = d.on_chain_verified ? "✅ PASS" : (d.blockchain_tx ? "❌ FAIL" : "⏳ Not yet logged");
-                             const overall = d.verified ? "✅ FULLY VERIFIED &mdash; Evidence is UNTAMPERED" : "❌ INTEGRITY COMPROMISED &mdash; TAMPERING DETECTED!";
-                             alert(`${overall}\n\n📁 Disk Hash Check: ${diskOk}\n️  Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nRecomputed Hash:\n${d.recomputed_hash || "N/A"}`);
+                             const chainOk = d.on_chain_verified ? "✅ PASS" : (d.blockchain_tx ? "⏳ Pending Confirmation" : "⏳ Not yet logged");
+                             
+                             let overall = "";
+                             if (d.disk_verified && d.on_chain_verified) {
+                               overall = "✅ FULLY VERIFIED — Evidence is UNTAMPERED";
+                             } else if (d.disk_verified && !d.on_chain_verified) {
+                               overall = "✅ DISK VERIFIED — Blockchain Sync Pending";
+                             } else {
+                               overall = "❌ INTEGRITY COMPROMISED — TAMPERING DETECTED!";
+                             }
+                             
+                             alert(`${overall}\n\n📁 Disk Hash Check: ${diskOk}\n🔗 Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nRecomputed Hash:\n${d.recomputed_hash || "N/A"}`);
                            } catch (err: any) {
                              alert("Verification failed: " + (err.response?.data?.detail || "Could not verify"));
                            }
