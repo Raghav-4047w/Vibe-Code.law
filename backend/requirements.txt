@@ -17,3 +17,4 @@ fpdf
 
 PyJWT
 networkx
+psycopg2-binary

@@ -7,6 +7,8 @@ from sqlalchemy.orm import sessionmaker
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     engine = create_engine(DATABASE_URL)
 else:
     print("[WARN] DATABASE_URL not found. Falling back to local SQLite to prevent crash.")
