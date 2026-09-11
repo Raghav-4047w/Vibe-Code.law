@@ -113,7 +113,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
         setUploadStep(`File ${i+1}/${evFiles.length}: Running Gemini Vision AI Analysis...`);
         
         await axios.post(`/api/cases/${params.id}/evidence`, formData, {
-          headers: { "Content-Type": "multipart/form-data" }
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 120000  // 2 min timeout - AI processing takes time on free tier
         });
       }
       

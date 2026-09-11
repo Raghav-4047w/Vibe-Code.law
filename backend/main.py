@@ -470,11 +470,20 @@ def upload_evidence(case_id: int, background_tasks: BackgroundTasks, title: str 
     db.commit()
     db.refresh(ev)
 
-    # Process AI synchronously right now using the same db session
-    process_evidence_ai(ev, file_path, file.content_type, db)
-    
-    # Reload evidence from db to return the processed data
-    db.refresh(ev)
+    # Process AI - wrapped in try/except so file upload ALWAYS succeeds
+    try:
+        process_evidence_ai(ev, file_path, file.content_type, db)
+        db.refresh(ev)
+    except Exception as ai_err:
+        print(f"[WARN] AI processing failed (non-fatal): {ai_err}")
+        # Update with a graceful fallback message
+        try:
+            ev.ocr_text = "AI processing unavailable on this deployment."
+            ev.ai_analysis = "Manual review required."
+            db.commit()
+            db.refresh(ev)
+        except:
+            pass
 
     create_audit(db, case.io_id or 1, "UPLOAD EVIDENCE", f"Uploaded '{title}' ({size}) for {case.fir_no}.")
     
@@ -488,6 +497,7 @@ def upload_evidence(case_id: int, background_tasks: BackgroundTasks, title: str 
         "blockchain_tx": ev.blockchain_tx,
         "polygonscan_url": f"https://amoy.polygonscan.com/tx/{ev.blockchain_tx}" if ev.blockchain_tx else None
     }
+
 
 
 @app.get("/api/cases/{case_id}/evidence")
