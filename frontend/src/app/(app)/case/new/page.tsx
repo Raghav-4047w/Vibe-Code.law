@@ -9,6 +9,7 @@ import axios from "axios";
 export default function RegisterCase() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [legalEra, setLegalEra] = useState<"post" | "pre">("post");
   const [allSections, setAllSections] = useState<any>({ post_2024: [], pre_2024: [] });
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
@@ -409,7 +410,7 @@ export default function RegisterCase() {
           </div>
 
           <div className="bg-white rounded-lg p-5 border border-outline-variant/50 flex items-start gap-4">
-            <input type="checkbox" className="mt-1 w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary shrink-0" />
+            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary shrink-0" />
             <p className="text-body-sm text-primary leading-relaxed">
               I confirm that the above details are accurate to the best of my knowledge and have been recorded in accordance with applicable procedure.
               <br /><span className="text-error mt-1 inline-block">Falsification of statutory police records carries disciplinary and penal liability under BNSS.</span>
@@ -430,7 +431,7 @@ export default function RegisterCase() {
             <button onClick={handleSaveDraft} className="bg-white text-primary px-6 py-2.5 rounded-lg text-label-md font-bold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-sm">
               <Save size={16} /> Save Draft
             </button>
-            <button onClick={handleSubmit} disabled={loading} className="bg-secondary hover:bg-[#b55c00] text-white px-8 py-2.5 rounded-lg text-label-md font-bold flex items-center gap-2 transition-colors shadow-md disabled:opacity-70">
+            <button onClick={handleSubmit} disabled={loading || !confirmed} className={	ext-white px-8 py-2.5 rounded-lg text-label-md font-bold flex items-center gap-2 transition-colors shadow-md disabled:opacity-70 }>
               {loading ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
               {loading ? "Registering..." : "Register Case"}
             </button>

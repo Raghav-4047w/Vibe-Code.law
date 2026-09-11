@@ -434,8 +434,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                     </label>
 
                     <button 
-                      onClick={handleUploadEvidence} disabled={isUploading}
-                      className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm mt-4 disabled:opacity-70"
+                      onClick={handleUploadEvidence} disabled={isUploading || !evConfirmed}
+                      className={`w-full ${evConfirmed ? 'bg-primary hover:bg-[#101B31]' : 'bg-outline-variant'} text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm mt-4 disabled:opacity-70 disabled:cursor-not-allowed`}
                     >
                       {isUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
                       Upload & Create New Version (v{evidenceList.length + 1})
@@ -516,10 +516,16 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                     </div>
 
                     <div className="flex flex-col gap-1.5 shrink-0 w-full xl:w-auto mt-2 xl:mt-0">
-                       <button 
-                         onClick={async () => {
+                       <div className="relative overflow-hidden flex items-center justify-between xl:justify-start gap-2 bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary transition-colors cursor-pointer">
+                         <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-[#0D7A5F]"/> Verify Local File</div>
+                         <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" title="Upload local file to verify against blockchain" onChange={async (e) => {
+                           const file = e.target.files?.[0];
+                           if (!file) return;
                            try {
-                             const res = await axios.get(`/api/evidence/${ev.id}/verify`);
+                             alert("Verifying file locally against Blockchain hash...");
+                             const fd = new FormData();
+                             fd.append("file", file);
+                             const res = await axios.post(`/api/evidence/${ev.id}/verify-local`, fd);
                              const d = res.data;
                              const diskOk = d.disk_verified ? "✅ PASS" : "❌ FAIL";
                              const chainOk = d.on_chain_verified ? "✅ PASS" : (d.blockchain_tx ? "⏳ Pending Confirmation" : "⏳ Not yet logged");
@@ -528,20 +534,18 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                              if (d.disk_verified && d.on_chain_verified) {
                                overall = "✅ FULLY VERIFIED — Evidence is UNTAMPERED";
                              } else if (d.disk_verified && !d.on_chain_verified) {
-                               overall = "✅ DISK VERIFIED — Blockchain Sync Pending";
+                               overall = "✅ LOCAL FILE VERIFIED — Blockchain Sync Pending";
                              } else {
-                               overall = "❌ INTEGRITY COMPROMISED — TAMPERING DETECTED!";
+                               overall = "❌ INTEGRITY COMPROMISED — HASH MISMATCH!";
                              }
                              
-                             alert(`${overall}\n\n📁 Disk Hash Check: ${diskOk}\n🔗 Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nRecomputed Hash:\n${d.recomputed_hash || "N/A"}`);
+                             alert(`${overall}\n\n📁 Local File Hash Match: ${diskOk}\n🔗 Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nComputed Local Hash:\n${d.recomputed_hash || "N/A"}`);
                            } catch (err: any) {
                              alert("Verification failed: " + (err.response?.data?.detail || "Could not verify"));
                            }
-                         }}
-                         className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary transition-colors cursor-pointer"
-                       >
-                         <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-[#0D7A5F]"/> Verify Integrity</div>
-                       </button>
+                           e.target.value = "";
+                         }} />
+                       </div>
 
                        <button 
                          onClick={() => window.open(`/api/files/${ev.file_hash}`, "_blank")}
