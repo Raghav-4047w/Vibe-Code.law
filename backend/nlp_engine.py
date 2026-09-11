@@ -29,7 +29,7 @@ _gemini_client = None
 try:
     from google import genai
     from google.genai import types
-import base64
+    import base64
     _api_key = os.getenv("GEMINI_API_KEY", base64.b64decode('QVEuQWI4Uk42S01sdmZJZG9nM1NDdGMxZVVVNHhkYmhGdWpET24tT0RWdWI0MlM2U3h1VlE='.encode()).decode()).strip()
     if _api_key:
         _gemini_client = genai.Client(api_key=_api_key)
