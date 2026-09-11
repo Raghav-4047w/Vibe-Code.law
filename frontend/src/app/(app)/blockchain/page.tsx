@@ -85,7 +85,7 @@ export default function BlockchainLedger() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border border-outline-variant/30 rounded-xl p-4 flex items-center gap-3">
           <div className="p-2.5 bg-[#8B5CF6]/10 rounded-lg"><Wallet size={18} className="text-[#8B5CF6]" /></div>
           <div>
@@ -116,17 +116,7 @@ export default function BlockchainLedger() {
           </div>
         </div>
 
-        <div className="bg-white border border-outline-variant/30 rounded-xl p-4 flex items-center gap-3">
-          <div className="p-2.5 bg-primary/10 rounded-lg"><Hash size={18} className="text-primary" /></div>
-          <div>
-            <p className="text-[10px] text-outline font-bold uppercase tracking-widest">Contract</p>
-            <p className="text-[11px] font-mono text-primary font-bold">{CONTRACT.slice(0,12)}…</p>
-            <a href={`${SCAN}/address/${CONTRACT}`} target="_blank"
-               className="text-[10px] text-[#8B5CF6] hover:underline flex items-center gap-0.5">
-              View contract <ExternalLink size={9}/>
-            </a>
-          </div>
-        </div>
+        
       </div>
 
       {/* Transactions Table */}

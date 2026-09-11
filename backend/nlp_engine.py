@@ -8,6 +8,11 @@ import os
 import io
 import math
 import json
+
+try:
+    import networkx as nx
+except ImportError:
+    nx = None
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
@@ -18,13 +23,13 @@ load_dotenv(os.path.join(_backend_dir, ".env"))
 # -------------------------------------------------------
 # Gemini Vision Setup — using new google.genai SDK
 # -------------------------------------------------------
-GEMINI_AVAILABLE = True
+GEMINI_AVAILABLE = False
 _gemini_client = None
 
 try:
     from google import genai
     from google.genai import types
-    _api_key = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6JhaQ" + "JeAoes04M-pNEo" + "lQh36j5dX72bmIjkvz19KWAOsw").strip()
+    _api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if _api_key:
         _gemini_client = genai.Client(api_key=_api_key)
         GEMINI_AVAILABLE = True
@@ -73,10 +78,11 @@ This document is in a bilingual format (English + Hindi/Marathi) and includes ha
    - Key evidence or stolen items mentioned
 
 3. EXTRACTED ENTITIES as JSON with these exact keys:
-   - "PERSON": list of real person names mentioned
+   - "PERSON": list of all people (complainants, accused, victims, officers, etc.)
    - "GPE": list of locations/places (cities, addresses)
-   - "ORG": list of organizations (police stations, courts)
-   - "DATE": list of dates and times mentioned
+   - "ORG": list of organizations (police stations, courts, banks, etc.)
+   - "DATE": list of all dates and times mentioned (e.g. "10-Aug-2026")
+   CRITICAL: You MUST meticulously extract EVERY person and date from the text. DO NOT LEAVE THESE ARRAYS EMPTY if they exist in the text.
 
 Respond in this exact format:
 
@@ -221,7 +227,24 @@ def _offline_generate_summary(text: str, n: int = 3) -> str:
     sentences = _get_sentences(text)
     if not sentences:
         return ""
-    return " ".join(sentences[:n])
+    if len(sentences) <= n or nx is None:
+        return " ".join(sentences[:n])
+        
+    graph = nx.Graph()
+    for i in range(len(sentences)):
+        graph.add_node(i)
+        for j in range(i + 1, len(sentences)):
+            sim = _sentence_similarity(sentences[i], sentences[j])
+            if sim > 0:
+                graph.add_edge(i, j, weight=sim)
+    try:
+        scores = nx.pagerank(graph, weight='weight')
+        ranked = sorted(((scores[i], s, i) for i, s in enumerate(sentences)), reverse=True)
+        top_n = sorted(ranked[:n], key=lambda x: x[2])
+        return " ".join([item[1] for item in top_n])
+    except Exception:
+        return " ".join(sentences[:n])
+
 
 
 

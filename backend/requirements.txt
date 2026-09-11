@@ -16,3 +16,4 @@ pillow
 fpdf
 
 PyJWT
+networkx
