@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { FileText, ArrowRight, Trash2, Calendar } from "lucide-react";

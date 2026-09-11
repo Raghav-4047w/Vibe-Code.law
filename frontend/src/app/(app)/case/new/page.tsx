@@ -217,7 +217,7 @@ export default function RegisterCase() {
       </div>
 
       <div className="bg-white rounded-[24px] shadow-sm border border-outline-variant/30 overflow-hidden mt-2">
-        {/* â”€â”€ STEP 01: CASE IDENTIFICATION â”€â”€ */}
+        {/* â"€â"€ STEP 01: CASE IDENTIFICATION â"€â"€ */}
         <div className="p-8">
           <div className="flex justify-between items-center mb-8 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">
@@ -328,7 +328,7 @@ export default function RegisterCase() {
         </div>
 
 
-        {/* â”€â”€ STEP 02: CASE DETAILS â”€â”€ */}
+        {/* â"€â"€ STEP 02: CASE DETAILS â"€â"€ */}
         <div className="p-8 border-t border-outline-variant/30">
           <div className="flex justify-between items-center mb-8 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">
@@ -363,7 +363,7 @@ export default function RegisterCase() {
           </div>
         </div>
 
-        {/* ðŸ“„ STEP 03: INITIAL EVIDENCE / FIR */}
+        {/* ðŸ"„ STEP 03: INITIAL EVIDENCE / FIR */}
         <div className="p-8 border-t border-outline-variant/30">
           <div className="flex justify-between items-center mb-6 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">
@@ -399,7 +399,7 @@ export default function RegisterCase() {
           </div>
         </div>
 
-        {/* âš–ï¸ STEP 05: DECLARATION âš–ï¸ */}
+        {/* âš&ndash;ï¸ STEP 05: DECLARATION âš&ndash;ï¸ */}
         <div className="p-8 border-t border-outline-variant/30 bg-surface/50">
           <div className="flex justify-between items-center mb-8 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-3">

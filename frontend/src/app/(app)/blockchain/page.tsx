@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ExternalLink, RefreshCw, Layers, CheckCircle2, Clock, Wallet, Cpu, Hash } from "lucide-react";
@@ -43,10 +43,10 @@ export default function BlockchainLedger() {
   useEffect(() => { fetchData(); }, []);
 
   const shortHash = (h: string) =>
-    h ? `${h.slice(0, 10)}...${h.slice(-8)}` : "—";
+    h ? `${h.slice(0, 10)}...${h.slice(-8)}` : "&mdash;";
 
   const formatTime = (iso?: string) => {
-    if (!iso) return "—";
+    if (!iso) return "&mdash;";
     return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
   };
 
@@ -102,7 +102,7 @@ export default function BlockchainLedger() {
           <div className="p-2.5 bg-[#0D7A5F]/10 rounded-lg"><CheckCircle2 size={18} className="text-[#0D7A5F]" /></div>
           <div>
             <p className="text-[10px] text-outline font-bold uppercase tracking-widest">Total Logs</p>
-            <p className="text-[26px] font-bold text-primary leading-tight">{loading ? "—" : txs.length}</p>
+            <p className="text-[26px] font-bold text-primary leading-tight">{loading ? "&mdash;" : txs.length}</p>
             <p className="text-[10px] text-outline">Evidence hashes on-chain</p>
           </div>
         </div>
@@ -111,7 +111,7 @@ export default function BlockchainLedger() {
           <div className="p-2.5 bg-[#F59E0B]/10 rounded-lg"><Cpu size={18} className="text-[#F59E0B]" /></div>
           <div>
             <p className="text-[10px] text-outline font-bold uppercase tracking-widest">Total Gas Spent</p>
-            <p className="text-[18px] font-bold text-primary leading-tight">{loading ? "—" : totalGas.toFixed(6)}</p>
+            <p className="text-[18px] font-bold text-primary leading-tight">{loading ? "&mdash;" : totalGas.toFixed(6)}</p>
             <p className="text-[10px] text-outline">POL (Amoy Testnet)</p>
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function BlockchainLedger() {
         <div className="px-5 py-3.5 border-b border-outline-variant/20 flex justify-between items-center bg-[#F5F3FF]/50">
           <h2 className="text-[13px] font-bold text-primary flex items-center gap-2">
             <Layers size={13} className="text-[#8B5CF6]" />
-            EvidenceLogged Events — Polygon Amoy
+            EvidenceLogged Events &mdash; Polygon Amoy
           </h2>
           {lastRefresh && (
             <span className="text-[10px] text-outline flex items-center gap-1">
@@ -183,21 +183,21 @@ export default function BlockchainLedger() {
                           #{tx.evidence_id}
                         </span>
                         <span className="text-primary font-medium truncate max-w-[120px]" title={tx.title}>
-                          {tx.title || "—"}
+                          {tx.title || "&mdash;"}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-3 font-mono text-outline text-[10px]">
-                      {tx.fir_no || "—"}
+                      {tx.fir_no || "&mdash;"}
                     </td>
                     <td className="px-4 py-3 text-outline whitespace-nowrap">
                       {formatTime(tx.uploaded_at)}
                     </td>
                     <td className="px-4 py-3 font-mono text-outline">
-                      {tx.block_number !== "—" ? `#${tx.block_number}` : "—"}
+                      {tx.block_number !== "&mdash;" ? `#${tx.block_number}` : "&mdash;"}
                     </td>
                     <td className="px-4 py-3 font-mono text-outline">
-                      {tx.gas_fee_pol ? `${tx.gas_fee_pol} POL` : "—"}
+                      {tx.gas_fee_pol ? `${tx.gas_fee_pol} POL` : "&mdash;"}
                     </td>
                     <td className="px-4 py-3">
                       <a

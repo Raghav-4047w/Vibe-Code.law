@@ -181,15 +181,15 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                <span className="text-[11px] text-primary font-bold tracking-widest uppercase bg-surface-container-low px-2 py-1 rounded">
                  REF: {caseData.fir_no}
                </span>
-               <span className="text-body-sm text-outline">•</span>
+               <span className="text-body-sm text-outline">&bull;</span>
                <span className="text-body-sm text-on-surface-variant flex items-center gap-1.5"><ShieldCheck size={14}/> {caseData.jurisdiction}</span>
-               <span className="text-body-sm text-outline">•</span>
+               <span className="text-body-sm text-outline">&bull;</span>
                <span className="text-body-sm text-outline flex items-center gap-1.5"><Lock size={14}/> Logged: {caseData.date}</span>
              </div>
            </div>
         </div>
 
-        {/* Role / Access Badge — compact & separate */}
+        {/* Role / Access Badge &mdash; compact & separate */}
         <div className="flex flex-col items-end gap-2 shrink-0">
           <div className="flex items-center gap-2 bg-surface rounded-xl border border-outline-variant/50 px-4 py-2">
             <span className="text-[10px] text-outline tracking-widest font-bold uppercase">Session Access</span>
@@ -506,9 +506,9 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                       <div>
                         <h4 className="text-[14px] text-primary font-bold leading-tight mb-1">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] mr-2 font-bold ${isLatest ? 'bg-[#0D7A5F] text-white' : 'bg-[#E2E8F0] text-outline'}`}>
-                            v{versionNum} {isLatest ? '• LATEST' : '• SUPERSEDED'}
+                            v{versionNum} {isLatest ? '&bull; LATEST' : '&bull; SUPERSEDED'}
                           </span>
-                          {ev.type} — {ev.title}
+                          {ev.type} &mdash; {ev.title}
                         </h4>
                         <p className="text-[11px] text-outline font-mono">Size: {ev.size}</p>
                       </div>
@@ -522,8 +522,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                              const d = res.data;
                              const diskOk = d.disk_verified ? "✅ PASS" : "❌ FAIL";
                              const chainOk = d.on_chain_verified ? "✅ PASS" : (d.blockchain_tx ? "❌ FAIL" : "⏳ Not yet logged");
-                             const overall = d.verified ? "✅ FULLY VERIFIED — Evidence is UNTAMPERED" : "❌ INTEGRITY COMPROMISED — TAMPERING DETECTED!";
-                             alert(`${overall}\n\n📁 Disk Hash Check: ${diskOk}\n⛓️  Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nRecomputed Hash:\n${d.recomputed_hash || "N/A"}`);
+                             const overall = d.verified ? "✅ FULLY VERIFIED &mdash; Evidence is UNTAMPERED" : "❌ INTEGRITY COMPROMISED &mdash; TAMPERING DETECTED!";
+                             alert(`${overall}\n\n📁 Disk Hash Check: ${diskOk}\n️  Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nRecomputed Hash:\n${d.recomputed_hash || "N/A"}`);
                            } catch (err: any) {
                              alert("Verification failed: " + (err.response?.data?.detail || "Could not verify"));
                            }
@@ -723,7 +723,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
 
                   {/* Revision History UI */}
                   <div className="mt-5 pt-5 border-t border-outline-variant/30 pl-2">
-                    <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">VERSION TRAIL — v{versionNum}</p>
+                    <p className="text-[9px] text-outline uppercase font-bold tracking-widest mb-4">VERSION TRAIL &mdash; v{versionNum}</p>
                     
                     <div className={`relative pl-6 pb-2 border-l-2 ${isLatest ? 'border-[#0D7A5F]' : 'border-outline-variant/50'}`}>
                        <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center text-white ${isLatest ? 'bg-[#0D7A5F]' : 'bg-outline-variant'}`}>
@@ -731,7 +731,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                        </div>
                        <div className="flex justify-between items-center mb-2">
                          <span className={`text-[11px] font-bold ${isLatest ? 'text-[#0D7A5F]' : 'text-outline'}`}>
-                           {isLatest ? 'ACTIVE — CURRENT VERSION' : 'SUPERSEDED'}
+                           {isLatest ? 'ACTIVE &mdash; CURRENT VERSION' : 'SUPERSEDED'}
                          </span>
                          <span className="text-[10px] text-outline">By: <span className="font-bold">{ev.uploaded_by}</span></span>
                        </div>

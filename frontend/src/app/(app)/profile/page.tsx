@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { User, ShieldCheck, Mail, Hash, Briefcase, Activity } from "lucide-react";

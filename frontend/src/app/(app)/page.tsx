@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Scale, FileText, Lock, CheckCircle2, AlertTriangle, ShieldCheck, HardDrive, Plus, ShieldAlert, ChevronRight, Search, Loader2 } from "lucide-react";

@@ -156,7 +156,7 @@ export default function RegisterPage() {
         {otpStep ? (
           <div className="mb-6 space-y-4">
             <div className="bg-[#E7F5EE] border border-[#0D7A5F]/30 rounded-lg p-4 text-left text-sm text-primary">
-              <p className="font-bold mb-1 text-[#0D7A5F]">âœ“ OTP Sent Successfully</p>
+              <p className="font-bold mb-1 text-[#0D7A5F]">âœ" OTP Sent Successfully</p>
               <p className="text-[12px] text-on-surface-variant">Verification code dispatched to: <strong>{email}</strong></p>
             </div>
             <div>
