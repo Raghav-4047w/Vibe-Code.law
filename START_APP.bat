@@ -1,30 +1,55 @@
 @echo off
-title Digital Evidence Locker - Starting...
+title Digital Evidence Locker - Auto Runner
 color 0A
 
-echo.
 echo ============================================================
 echo   DIGITAL EVIDENCE LOCKER - SIH 2026
 echo   Polygon Amoy Blockchain + Gemini Vision AI
 echo ============================================================
 echo.
 
-REM ?? Start Backend ?????????????????????????????????????????????
-echo [1/2] Starting FastAPI Backend on http://localhost:8000 ...
-cd backend
-start "Backend - FastAPI" cmd /k "call venv\Scripts\activate.bat && uvicorn main:app --reload --port 8000"
-cd ..
+REM --- 1. Check and Install Backend Dependencies ---
+if not exist "backend\venv\" (
+    echo [SETUP] First time setup detected! Setting up Python environment...
+    cd backend
+    python -m venv venv
+    call venv\Scripts\activate.bat
+    python -m pip install --upgrade pip
+    pip install fastapi uvicorn[standard] sqlalchemy python-multipart bcrypt python-dotenv google-genai web3 eth-account pymupdf reportlab spacy sumy requests pillow
+    python -m spacy download en_core_web_sm
+    python init_db.py
+    cd ..
+)
 
-REM ?? Wait 3 seconds for backend to init ????????????????????????
+REM --- 2. Check and Install Frontend Dependencies ---
+if not exist "frontend\node_modules\" (
+    echo [SETUP] Installing Frontend dependencies...
+    cd frontend
+    npm install
+    cd ..
+)
+
+REM --- 3. Check and Install Blockchain Dependencies ---
+if not exist "blockchain\node_modules\" (
+    echo [SETUP] Installing Blockchain dependencies...
+    cd blockchain
+    npm install
+    cd ..
+)
+
+echo [READY] All dependencies are present.
+echo.
+
+REM --- Start Backend ---
+echo [1/2] Starting FastAPI Backend on http://localhost:8000 ...
+start "Backend - FastAPI" cmd /k "cd backend && call venv\Scripts\activate.bat && uvicorn main:app --reload --port 8000"
+
 timeout /t 3 /nobreak >nul
 
-REM ?? Start Frontend ????????????????????????????????????????????
+REM --- Start Frontend ---
 echo [2/2] Starting Next.js Frontend on http://localhost:3000 ...
-cd frontend
-start "Frontend - Next.js" cmd /k "npm run dev"
-cd ..
+start "Frontend - Next.js" cmd /k "cd frontend && npm run dev"
 
-REM ?? Wait 5 seconds then open browser ?????????????????????????
 timeout /t 5 /nobreak >nul
 
 echo.
@@ -36,7 +61,6 @@ echo ============================================================
 echo   APP IS RUNNING!
 echo   Frontend : http://localhost:3000
 echo   Backend  : http://localhost:8000
-echo   API Docs : http://localhost:8000/docs
 echo.
 echo   Login Credentials:
 echo     Officer  : DL-POL-2024-8842  / password
