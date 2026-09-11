@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Scale, FileText, Lock, CheckCircle2, AlertTriangle, ShieldCheck, HardDrive, Plus, ShieldAlert, ChevronRight, Search, Loader2 } from "lucide-react";
@@ -15,7 +15,7 @@ export default function Dashboard() {
     setUserRole(sessionStorage.getItem("userRole") || "");
     const fetchCases = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/api/cases");
+        const res = await axios.get("/api/cases");
         setCases(res.data);
       } catch (err) {
         console.error("Failed to fetch cases");

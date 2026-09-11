@@ -35,7 +35,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
 
   const fetchEvidence = async () => {
     try {
-      const evidenceRes = await axios.get(`http://localhost:8000/api/cases/${params.id}/evidence`);
+      const evidenceRes = await axios.get(`/api/cases/${params.id}/evidence`);
       setEvidenceList(evidenceRes.data);
     } catch (err) {
       console.error("Failed to fetch evidence data");
@@ -51,8 +51,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
     const fetchData = async () => {
       try {
         const [caseRes, evidenceRes] = await Promise.all([
-          axios.get(`http://localhost:8000/api/cases/${params.id}`),
-          axios.get(`http://localhost:8000/api/cases/${params.id}/evidence`)
+          axios.get(`/api/cases/${params.id}`),
+          axios.get(`/api/cases/${params.id}/evidence`)
         ]);
         setCaseData(caseRes.data);
         setEvidenceList(evidenceRes.data);
@@ -73,7 +73,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
     
     setIsSealing(true);
     try {
-      await axios.post(`http://localhost:8000/api/cases/${params.id}/seal`, {
+      await axios.post(`/api/cases/${params.id}/seal`, {
         verdict: verdict,
         order_ref: orderRef,
         remarks: remarks,
@@ -112,7 +112,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
         await new Promise(r => setTimeout(r, 800));
         setUploadStep(`File ${i+1}/${evFiles.length}: Running Gemini Vision AI Analysis...`);
         
-        await axios.post(`http://localhost:8000/api/cases/${params.id}/evidence`, formData, {
+        await axios.post(`/api/cases/${params.id}/evidence`, formData, {
           headers: { "Content-Type": "multipart/form-data" }
         });
       }
@@ -248,7 +248,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
               </div>
 
               <button 
-                onClick={() => window.open(`http://localhost:8000/api/cases/${params.id}/pdf`, '_blank')}
+                onClick={() => window.open(`/api/cases/${params.id}/pdf`, '_blank')}
                 className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm"
               >
                 <Download size={16} /> Download Case Report (PDF)
@@ -351,7 +351,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                    <span className="text-[12px] text-[#0D7A5F] font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Verified</span>
                 </div>
 
-                <button onClick={() => window.open(`http://localhost:8000/api/cases/${params.id}/pdf`, '_blank')} className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm">
+                <button onClick={() => window.open(`/api/cases/${params.id}/pdf`, '_blank')} className="w-full bg-primary hover:bg-[#101B31] text-white rounded-lg py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold transition-all shadow-sm">
                   <Download size={16} /> Download Evidentiary Report
                 </button>
               </div>
@@ -518,7 +518,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                        <button 
                          onClick={async () => {
                            try {
-                             const res = await axios.get(`http://localhost:8000/api/evidence/${ev.id}/verify`);
+                             const res = await axios.get(`/api/evidence/${ev.id}/verify`);
                              const d = res.data;
                              const diskOk = d.disk_verified ? "✅ PASS" : "❌ FAIL";
                              const chainOk = d.on_chain_verified ? "✅ PASS" : (d.blockchain_tx ? "❌ FAIL" : "⏳ Not yet logged");
@@ -534,7 +534,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                        </button>
 
                        <button 
-                         onClick={() => window.open(`http://localhost:8000/api/files/${ev.file_hash}`, "_blank")}
+                         onClick={() => window.open(`/api/files/${ev.file_hash}`, "_blank")}
                          className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0FFF4] hover:bg-[#E6F4EA] border border-[#A8DAB5] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[#0D7A5F] transition-colors cursor-pointer"
                        >
                          <div className="flex items-center gap-1.5"><FileText size={12}/> View Uploaded File</div>
@@ -703,8 +703,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                                    {data.images.map((img: string, idx: number) => {
                                       const hashOnly = img.split('.')[0];
                                       return (
-                                        <a key={idx} href={`http://localhost:8000/api/files/${hashOnly}`} target="_blank" rel="noreferrer" className="block border border-outline-variant/50 rounded overflow-hidden shadow-sm hover:border-primary transition-colors bg-white p-1">
-                                          <img src={`http://localhost:8000/api/files/${hashOnly}`} alt="Extracted Evidence" className="h-28 w-auto object-cover rounded-sm" />
+                                        <a key={idx} href={`/api/files/${hashOnly}`} target="_blank" rel="noreferrer" className="block border border-outline-variant/50 rounded overflow-hidden shadow-sm hover:border-primary transition-colors bg-white p-1">
+                                          <img src={`/api/files/${hashOnly}`} alt="Extracted Evidence" className="h-28 w-auto object-cover rounded-sm" />
                                         </a>
                                       );
                                    })}

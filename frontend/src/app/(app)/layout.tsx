@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Navbar from "@/components/Navbar";
 import { useEffect, useState } from "react";
@@ -41,7 +41,7 @@ export default function AppLayout({
       <footer className="w-full border-t border-outline-variant/30 py-6 mt-8">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
           <p className="text-body-sm text-outline">
-            © 2026 Sovereign Vault Authentication. Statutory record management framework.
+            Â© 2026 Sovereign Vault Authentication. Statutory record management framework.
           </p>
           <div className="flex gap-4 text-body-sm text-outline">
             <span className="hover:text-primary cursor-pointer transition-colors">Privacy Policy</span>

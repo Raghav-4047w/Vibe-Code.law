@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Shield, IdCard, KeyRound, Eye, EyeOff, Gavel, UserPlus, Loader2, User } from "lucide-react";
@@ -36,7 +36,7 @@ export default function RegisterPage() {
     setError("");
     
     try {
-      const res = await axios.post("http://localhost:8000/api/auth/send-registration-otp", {
+      const res = await axios.post("/api/auth/send-registration-otp", {
         badge_id: badgeId,
         email: email
       });
@@ -55,7 +55,7 @@ export default function RegisterPage() {
     setError("");
     
     try {
-      await axios.post("http://localhost:8000/api/auth/register", {
+      await axios.post("/api/auth/register", {
         badge_id: badgeId,
         name: name,
         email: email,
@@ -152,7 +152,7 @@ export default function RegisterPage() {
         {otpStep ? (
           <div className="mb-6 space-y-4">
             <div className="bg-[#E7F5EE] border border-[#0D7A5F]/30 rounded-lg p-4 text-left text-sm text-primary">
-              <p className="font-bold mb-1 text-[#0D7A5F]">✓ OTP Sent Successfully</p>
+              <p className="font-bold mb-1 text-[#0D7A5F]">âœ“ OTP Sent Successfully</p>
               <p className="text-[12px] text-on-surface-variant">Verification code dispatched to: <strong>{email}</strong></p>
             </div>
             <div>
@@ -241,7 +241,7 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   className="block w-full pl-10 pr-10 py-3 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-body-md text-primary transition-all font-mono tracking-widest"
                 />
                 <button

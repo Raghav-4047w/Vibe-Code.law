@@ -30,7 +30,7 @@ export default function BlockchainLedger() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:8000/api/blockchain/transactions");
+      const res = await axios.get("/api/blockchain/transactions");
       setTxs(res.data);
       setLastRefresh(new Date());
     } catch (e) {

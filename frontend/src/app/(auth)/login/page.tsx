@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Shield, IdCard, KeyRound, Eye, EyeOff, Gavel, Loader2, Lock } from "lucide-react";
@@ -27,7 +27,7 @@ export default function LoginPage() {
       setLoading(true);
       setError("");
       try {
-        await axios.post("http://localhost:8000/api/auth/forgot-password", { badge_id: badgeId });
+        await axios.post("/api/auth/forgot-password", { badge_id: badgeId });
         setResetSent(true);
       } catch (err: any) {
         setError(err.response?.data?.detail || "Failed to initiate recovery. Ensure Service ID is correct.");
@@ -45,7 +45,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await axios.post("http://localhost:8000/api/auth/login", {
+      const res = await axios.post("/api/auth/login", {
         badge_id: badgeId,
         password: password,
         role: role,
@@ -195,7 +195,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className="block w-full pl-10 pr-10 py-2.5 border border-outline-variant/50 rounded-lg bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-secondary/30 focus:border-primary text-[13px] text-primary transition-all font-mono tracking-widest"
                   />
                   <button
@@ -237,7 +237,7 @@ export default function LoginPage() {
             ) : isForgotPassword ? (
               "Request Recovery Link"
             ) : (
-              <>Sign In Securely <span className="text-lg leading-none">→</span></>
+              <>Sign In Securely <span className="text-lg leading-none">â†’</span></>
             )}
           </button>
 
