@@ -8,7 +8,15 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: WALLET_PRIVATE_KEY
+      - key: POLYGON_CONTRACT_ADDRESS
+        value: 0xA94D3FF15B2c24E8e2E820d6e631c79a69b2b14c
+      - key: POLYGON_RPC_URL
+        value: https://polygon-amoy-bor-rpc.publicnode.com
+      - key: POLYGON_WALLET_ADDRESS
+        value: 0xc58dC13162fcA1b04AF4af2Ea9072d8FDE1ef8f7
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: POLYGON_PRIVATE_KEY
         sync: false
     disk:
       name: evidence_locker_data
