@@ -1,7 +1,11 @@
 from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from database import Base
+
+
+def get_ist_now():
+    return datetime.now(timezone(timedelta(hours=5, minutes=30)))
 
 class User(Base):
     __tablename__ = "users"
@@ -29,7 +33,7 @@ class Case(Base):
     jurisdiction = Column(String)
     date = Column(String)
     is_sealed = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_ist_now)
     
     io_id = Column(Integer, ForeignKey("users.id"))
     io = relationship("User", back_populates="cases")
@@ -47,7 +51,7 @@ class Evidence(Base):
     blockchain_tx = Column(String, nullable=True) # Polygon Tx Hash
     ipfs_cid = Column(String, nullable=True)
     size = Column(String)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=get_ist_now)
     uploaded_by = Column(String)
     ocr_text = Column(Text, nullable=True)
     ai_analysis = Column(Text, nullable=True)
@@ -58,7 +62,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=get_ist_now)
     user_id = Column(Integer, ForeignKey("users.id"))
     action = Column(String)
     details = Column(Text)
