@@ -18,7 +18,3 @@ services:
         sync: false
       - key: POLYGON_PRIVATE_KEY
         sync: false
-    disk:
-      name: evidence_locker_data
-      mountPath: /opt/render/project/src/backend/uploads
-      sizeGB: 1
