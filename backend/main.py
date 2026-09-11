@@ -544,6 +544,32 @@ def get_blockchain_transactions(db: Session = Depends(get_db)):
     return result
 
 
+
+@app.post("/api/evidence/{evidence_id}/verify-local")
+def verify_local_file(evidence_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Zero-Trust Local Verification: User uploads local file, we hash in-memory and compare."""
+    import hashlib
+    ev = db.query(models.Evidence).filter(models.Evidence.id == evidence_id).first()
+    if not ev:
+        raise HTTPException(404, "Evidence metadata not found in database.")
+        
+    contents = file.file.read()
+    recomputed_hash = hashlib.sha256(contents).hexdigest()
+    disk_verified = (recomputed_hash == ev.file_hash)
+    
+    # Check blockchain
+    chain_result = verify_evidence_on_chain(ev.id, ev.file_hash)
+    
+    return {
+        "verified": disk_verified and chain_result.get("on_chain_match", False),
+        "disk_verified": disk_verified,
+        "on_chain_verified": chain_result.get("on_chain_match", False),
+        "stored_hash": ev.file_hash,
+        "recomputed_hash": recomputed_hash,
+        "blockchain_tx": ev.blockchain_tx
+    }
+
+
 @app.get("/api/evidence/{evidence_id}/verify")
 def verify_evidence_integrity(evidence_id: int, db: Session = Depends(get_db)):
     """Verify evidence integrity: disk re-hash + on-chain blockchain check."""
