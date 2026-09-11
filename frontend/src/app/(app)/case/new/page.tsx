@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Save, Plus, ShieldAlert, Loader2, X, Phone, User as UserIcon } from "lucide-react";
+import { FileText, Save, Plus, ShieldAlert, Loader2, X, Phone, User as UserIcon, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -32,16 +32,30 @@ export default function RegisterCase() {
     setUserBadge(sessionStorage.getItem("userBadge") || "");
     
     // Load Draft
-    const savedDraft = localStorage.getItem("caseDraft");
-    if (savedDraft) {
+    const params = new URLSearchParams(window.location.search);
+    const draftId = params.get("draftId");
+    if (draftId) {
       try {
-        const draft = JSON.parse(savedDraft);
-        setFormData(draft.formData);
-        setSelectedSections(draft.selectedSections);
-        setLegalEra(draft.legalEra);
+        const savedDrafts = JSON.parse(localStorage.getItem("caseDrafts") || "[]");
+        const draft = savedDrafts.find((d: any) => d.id === draftId);
+        if (draft) {
+          setFormData(draft.formData);
+          setSelectedSections(draft.selectedSections);
+          setLegalEra(draft.legalEra);
+        }
       } catch (e) {
-        console.error("Failed to load draft", e);
+        console.error("Failed to load drafts", e);
       }
+    } else {
+      setFormData({
+        fir_no: "",
+        title: "",
+        description: "",
+        jurisdiction: "",
+        date: "",
+      });
+      setSelectedSections([]);
+      setEvidenceFile(null);
     }
 
     axios.get("http://localhost:8000/api/legal-sections").then((res) => {
@@ -51,12 +65,21 @@ export default function RegisterCase() {
 
   const handleSaveDraft = () => {
     const draft = {
+      id: formData.fir_no || `DRAFT-${Date.now()}`,
+      timestamp: new Date().toISOString(),
       formData,
       selectedSections,
       legalEra
     };
-    localStorage.setItem("caseDraft", JSON.stringify(draft));
-    alert("Draft saved successfully! You can return later to complete it.");
+    try {
+      const savedDrafts = JSON.parse(localStorage.getItem("caseDrafts") || "[]");
+      const existingIdx = savedDrafts.findIndex((d: any) => d.id === draft.id);
+      if(existingIdx >= 0) savedDrafts[existingIdx] = draft;
+      else savedDrafts.push(draft);
+      localStorage.setItem("caseDrafts", JSON.stringify(savedDrafts));
+      alert("Draft saved successfully!");
+      window.location.href = "/";
+    } catch(e) {}
   };
 
   const currentSections = legalEra === "post" ? allSections.post_2024 : allSections.pre_2024;
@@ -113,8 +136,18 @@ export default function RegisterCase() {
         });
       }
 
-      // Clear draft on successful submission
-      localStorage.removeItem("caseDraft");
+      alert(`Case Registered Successfully!\n\nBlockchain transaction will be linked automatically when mined.\n\nClick OK to view dossier.`);
+      
+      try {
+        const draftId = new URLSearchParams(window.location.search).get("draftId");
+        if(draftId || formData.fir_no) {
+          const idToRemove = draftId || formData.fir_no;
+          let savedDrafts = JSON.parse(localStorage.getItem("caseDrafts") || "[]");
+          savedDrafts = savedDrafts.filter((d: any) => d.id !== idToRemove);
+          localStorage.setItem("caseDrafts", JSON.stringify(savedDrafts));
+        }
+      } catch(e) {}
+
       window.location.href = `/case/${newCaseId}`;
     } catch (err: any) {
       const detail = err.response?.data?.detail;
@@ -133,8 +166,39 @@ export default function RegisterCase() {
     : ["IPC § 420", "IPC § 302", "IPC § 379", "IPC § 406", "IPC § 506"];
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col gap-6">
-      {/* Page Header */}
+    <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 relative">
+      
+      {/* Full Page Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-primary/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] p-8 max-w-sm w-full flex flex-col items-center text-center shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="relative mb-6">
+               <div className="w-20 h-20 border-4 border-surface-variant rounded-full"></div>
+               <div className="absolute top-0 left-0 w-20 h-20 border-4 border-[#0D7A5F] rounded-full border-t-transparent animate-spin"></div>
+               <div className="absolute inset-0 flex items-center justify-center animate-pulse">
+                 <ShieldAlert className="text-[#0D7A5F]" size={28} />
+               </div>
+            </div>
+            <h3 className="text-title-lg text-primary font-bold mb-2">Processing Dossier</h3>
+            <p className="text-[12px] text-outline mb-6">Securing evidentiary artifacts & applying AI heuristics.</p>
+            
+            <div className="space-y-3 w-full text-left bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+               <div className="flex items-center gap-2 text-[12px] text-primary">
+                 <CheckCircle2 size={14} className="text-[#0D7A5F]" /> Structuring metadata
+               </div>
+               <div className="flex items-center gap-2 text-[12px] text-primary font-bold">
+                 <Loader2 size={14} className="text-secondary animate-spin" /> Deep AI OCR & Gemini Vision Analysis
+               </div>
+               <div className="flex items-center gap-2 text-[12px] text-primary">
+                 <Lock size={14} className="text-outline" /> Computing cryptographic hashes
+               </div>
+            </div>
+            <p className="text-[11px] text-error mt-6 font-bold tracking-widest uppercase">Do Not Close Window</p>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2 text-label-md text-outline">
           <Link href="/" className="hover:text-primary transition-colors">Cases</Link>

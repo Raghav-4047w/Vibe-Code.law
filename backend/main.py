@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import engine, Base, get_db
+from database import engine, Base, get_db, SessionLocal
 import models
 import schemas
 from typing import List
@@ -17,6 +17,10 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Blockchain connector - Polygon Amoy
+from blockchain_connector import log_evidence_on_chain, verify_evidence_on_chain, BLOCKCHAIN_ENABLED
+print(f"[Startup] Blockchain Integration: {'ENABLED' if BLOCKCHAIN_ENABLED else 'DISABLED'}")
 
 # NLP Engine - SpaCy + Sumy
 import spacy
@@ -332,8 +336,88 @@ def seal_case(case_id: int, body: dict, db: Session = Depends(get_db)):
 import os
 from google import genai
 
+# --- AI/OCR Processing (Synchronous) ---
+def process_evidence_ai(ev, file_path: str, content_type: str, db: Session):
+    import json
+    import re
+    from ocr_engine import process_pdf, is_pdf_file
+    from nlp_engine import analyze_document
+    
+    try:
+        with open(file_path, "rb") as f:
+            contents = f.read()
+
+        extracted_text = ""
+        extracted_image_hashes = []
+
+        try:
+            filename = os.path.basename(file_path)
+
+            if is_pdf_file(filename) or "pdf" in (content_type or "").lower():
+                extracted_text, saved_images = process_pdf(contents, ev.id, "uploads")
+                extracted_image_hashes = saved_images
+            else:
+                # For non-PDF image uploads, use Gemini directly
+                extracted_text = ""
+                extracted_image_hashes = [filename]
+
+            ocr_text = extracted_text.strip() if extracted_text.strip() else "[No text detected in document]"
+
+            nlp_result = analyze_document(ocr_text, [file_path])
+            raw_entities = nlp_result.get("entities", {})
+
+            # Regex for IP, Email, Phone
+            import re
+            ips = list(set(re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', ocr_text)))
+            emails = list(set(re.findall(r'[\w\.-]+@[\w\.-]+', ocr_text)))
+            phones = list(set(re.findall(r'(?:\+91[\-\s]?)?[6-9]\d{9}', ocr_text)))
+            
+            keywords_list = ['fraud', 'crypto', 'wallet', 'suspect', 'transaction', 'unauthorized', 'bank', 'account', 'hack', 'phishing', 'ransom', 'dark web', 'bitcoin', 'ethereum', 'UPI']
+            detected_kws = [kw for kw in keywords_list if kw.lower() in ocr_text.lower()]
+
+            analysis_json = {
+                "summary": nlp_result.get("summary", "Insufficient text for summarization."),
+                "entities": {
+                    "persons": raw_entities.get("PERSON", []),
+                    "orgs": raw_entities.get("ORG", []),
+                    "locations": raw_entities.get("GPE", []),
+                    "money": raw_entities.get("MONEY", []),
+                    "dates": raw_entities.get("DATE", []),
+                    "ips": ips,
+                    "emails": emails,
+                    "phones": phones,
+                    "keywords": detected_kws
+                },
+                "images": [img.split('.')[0] for img in extracted_image_hashes]
+            }
+
+            ev.ai_analysis = json.dumps(analysis_json)
+            ev.ocr_text = nlp_result.get("full_text", ocr_text)
+
+        except Exception as e:
+            ev.ocr_text = f"[OCR/NLP Failed] Error: {str(e)}"
+            ev.ai_analysis = json.dumps({"summary": f"Analysis failed: {str(e)}", "entities": {}, "images": []})
+
+        db.commit()
+
+        # ── Log SHA-256 hash on Polygon Amoy Blockchain ──────────────────
+        try:
+            bc_result = log_evidence_on_chain(ev.id, ev.file_hash)
+            if bc_result.get("success"):
+                ev.blockchain_tx = bc_result["tx_hash"]
+                db.commit()
+                print(f"[Blockchain] TX saved to DB for evidence #{ev.id}")
+            else:
+                print(f"[Blockchain] Could not log: {bc_result.get('error')}")
+        except Exception as bc_err:
+            print(f"[Blockchain] Exception during logging: {bc_err}")
+
+    except Exception as e:
+        print(f"Error in process_evidence_ai: {e}")
+
+
 @app.post("/api/cases/{case_id}/evidence")
-def upload_evidence(case_id: int, title: str = Form(...), type: str = Form("Document"), uploaded_by: str = Form("System"), file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_evidence(case_id: int, background_tasks: BackgroundTasks, title: str = Form(...), type: str = Form("Document"), uploaded_by: str = Form("System"), file: UploadFile = File(...), db: Session = Depends(get_db)):
     case = db.query(models.Case).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(404, "Case not found")
@@ -344,148 +428,133 @@ def upload_evidence(case_id: int, title: str = Form(...), type: str = Form("Docu
     file_hash = hashlib.sha256(contents).hexdigest()
     size = f"{len(contents)/1024:.1f} KB" if len(contents) < 1048576 else f"{len(contents)/1048576:.2f} MB"
 
-    ocr_text = "No text extracted."
-    ai_analysis = "No AI analysis performed."
+    os.makedirs("uploads", exist_ok=True)
+    ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
+    file_path = f"uploads/{file_hash}{ext}"
+    with open(file_path, "wb") as f:
+        f.write(contents)
 
-    # Tesseract OCR Integration
-    import pytesseract
-    from PIL import Image
-    import pymupdf
-    import io
-    import re
-    
-    # Configure Tesseract path for Windows
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
-    if len(contents) > 0:
-        try:
-            # 1. OCR Extraction
-            extracted_text = ""
-            if "pdf" in (file.content_type or "").lower():
-                doc = pymupdf.open(stream=contents, filetype="pdf")
-                for page in doc:
-                    pix = page.get_pixmap()
-                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                    extracted_text += pytesseract.image_to_string(img) + "\n"
-            else:
-                img = Image.open(io.BytesIO(contents))
-                extracted_text = pytesseract.image_to_string(img)
-            
-            ocr_text = extracted_text.strip() if extracted_text.strip() else "[No text detected in document]"
-            
-            # 2. SpaCy NLP Analysis
-            analysis_parts = []
-            
-            # --- Summarization using sumy ---
-            try:
-                from sumy.parsers.plaintext import PlaintextParser
-                from sumy.nlp.tokenizers import Tokenizer
-                from sumy.summarizers.lsa import LsaSummarizer
-                parser = PlaintextParser.from_string(ocr_text, Tokenizer("english"))
-                summarizer = LsaSummarizer()
-                summary_sentences = summarizer(parser.document, 3)
-                summary = " ".join(str(s) for s in summary_sentences)
-                if summary.strip():
-                    analysis_parts.append(f"📋 DOCUMENT SUMMARY:\n{summary}")
-                else:
-                    analysis_parts.append("📋 DOCUMENT SUMMARY:\nInsufficient text for summarization.")
-            except:
-                analysis_parts.append("📋 DOCUMENT SUMMARY:\nSummarization engine unavailable.")
-            
-            # --- SpaCy NER ---
-            if nlp and len(ocr_text) > 10:
-                doc_nlp = nlp(ocr_text[:100000])  # Limit to 100k chars for performance
-                
-                persons = list(set(ent.text.strip() for ent in doc_nlp.ents if ent.label_ == "PERSON" and len(ent.text.strip()) > 1))
-                orgs = list(set(ent.text.strip() for ent in doc_nlp.ents if ent.label_ == "ORG" and len(ent.text.strip()) > 1))
-                locations = list(set(ent.text.strip() for ent in doc_nlp.ents if ent.label_ == "GPE" and len(ent.text.strip()) > 1))
-                money = list(set(ent.text.strip() for ent in doc_nlp.ents if ent.label_ == "MONEY"))
-                dates = list(set(ent.text.strip() for ent in doc_nlp.ents if ent.label_ == "DATE"))
-                
-                analysis_parts.append(f"👤 PERSONS IDENTIFIED:\n{', '.join(persons) if persons else 'None detected'}")
-                analysis_parts.append(f"🏢 ORGANIZATIONS:\n{', '.join(orgs) if orgs else 'None detected'}")
-                analysis_parts.append(f"📍 LOCATIONS:\n{', '.join(locations) if locations else 'None detected'}")
-                analysis_parts.append(f"💰 FINANCIAL REFERENCES:\n{', '.join(money) if money else 'None detected'}")
-                analysis_parts.append(f"📅 DATES MENTIONED:\n{', '.join(dates) if dates else 'None detected'}")
-            else:
-                analysis_parts.append("👤 PERSONS IDENTIFIED:\nNLP engine not available")
-            
-            # --- Regex-based extraction ---
-            ips = list(set(re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', ocr_text)))
-            emails_found = list(set(re.findall(r'[\w\.-]+@[\w\.-]+', ocr_text)))
-            phones = list(set(re.findall(r'(?:\+91[\-\s]?)?[6-9]\d{9}', ocr_text)))
-            
-            analysis_parts.append(f"🌐 IP ADDRESSES:\n{', '.join(ips) if ips else 'None detected'}")
-            analysis_parts.append(f"📧 EMAIL ADDRESSES:\n{', '.join(emails_found) if emails_found else 'None detected'}")
-            analysis_parts.append(f"📞 PHONE NUMBERS:\n{', '.join(phones) if phones else 'None detected'}")
-            
-            # --- Keyword detection ---
-            keywords = ['fraud', 'crypto', 'wallet', 'suspect', 'transaction', 'unauthorized', 'bank', 'account', 'hack', 'phishing', 'ransom', 'dark web', 'bitcoin', 'ethereum', 'UPI']
-            found_keywords = [kw for kw in keywords if kw.lower() in ocr_text.lower()]
-            analysis_parts.append(f"⚠️ HIGH-RISK KEYWORDS:\n{', '.join(found_keywords) if found_keywords else 'None detected'}")
-            
-            ai_analysis = "\n\n".join(analysis_parts)
-
-        except Exception as e:
-            ocr_text = f"[OCR Failed] Please ensure Tesseract is installed at C:\\Program Files\\Tesseract-OCR\\tesseract.exe. Error: {str(e)}"
-            ai_analysis = "Analysis could not run because OCR extraction failed."
+    import json
+    initial_analysis = json.dumps({
+        "summary": "AI processing in progress... Please refresh the page in a few moments.",
+        "entities": {},
+        "images": []
+    })
 
     ev = models.Evidence(
         case_id=case_id, 
         title=title, 
         type=type, 
         file_hash=file_hash, 
-        size=size, 
-        uploaded_by=uploaded_by, 
-        uploaded_at=datetime.utcnow(),
-        ocr_text=ocr_text,
-        ai_analysis=ai_analysis
+        size=size,
+        uploaded_by=uploaded_by,
+        ocr_text="[OCR processing initiated...]",
+        ai_analysis=initial_analysis
     )
     db.add(ev)
     db.commit()
     db.refresh(ev)
-    create_audit(db, case.io_id or 1, "UPLOAD EVIDENCE", f"Uploaded '{title}' ({size}) for {case.fir_no}. SHA-256: {file_hash[:16]}...")
-    return {"id": ev.id, "title": ev.title, "file_hash": ev.file_hash, "size": ev.size, "ocr_text": ev.ocr_text, "ai_analysis": ev.ai_analysis}
+
+    # Process AI synchronously right now using the same db session
+    process_evidence_ai(ev, file_path, file.content_type, db)
+    
+    # Reload evidence from db to return the processed data
+    db.refresh(ev)
+
+    create_audit(db, case.io_id or 1, "UPLOAD EVIDENCE", f"Uploaded '{title}' ({size}) for {case.fir_no}.")
+    
+    return {
+        "id": ev.id,
+        "title": ev.title,
+        "file_hash": ev.file_hash,
+        "size": ev.size,
+        "ocr_text": ev.ocr_text,
+        "ai_analysis": ev.ai_analysis,
+        "blockchain_tx": ev.blockchain_tx,
+        "polygonscan_url": f"https://amoy.polygonscan.com/tx/{ev.blockchain_tx}" if ev.blockchain_tx else None
+    }
 
 
 @app.get("/api/cases/{case_id}/evidence")
 def get_evidence(case_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Evidence).filter(models.Evidence.case_id == case_id).all()
+    return db.query(models.Evidence).filter(models.Evidence.case_id == case_id).order_by(models.Evidence.id.desc()).all()
+
+@app.get("/api/blockchain/transactions")
+def get_blockchain_transactions(db: Session = Depends(get_db)):
+    """Fetch all EvidenceLogged events from Polygon Amoy chain (live), with DB fallback."""
+    from blockchain_connector import get_evidence_events
+    
+    # Try live on-chain fetch first
+    live_events = get_evidence_events(last_n_blocks=9999)
+    
+    if live_events:
+        # Enrich with case/title info from DB
+        for ev_event in live_events:
+            db_ev = db.query(models.Evidence).filter(models.Evidence.id == ev_event["evidence_id"]).first()
+            if db_ev:
+                ev_event["title"] = db_ev.title
+                ev_event["uploaded_at"] = db_ev.uploaded_at.isoformat() if db_ev.uploaded_at else None
+                case = db.query(models.Case).filter(models.Case.id == db_ev.case_id).first()
+                ev_event["fir_no"] = case.fir_no if case else "—"
+        return live_events
+    
+    # Fallback: return DB records that have blockchain_tx
+    evs = db.query(models.Evidence).filter(models.Evidence.blockchain_tx != None).order_by(models.Evidence.id.desc()).all()
+    result = []
+    for ev in evs:
+        case = db.query(models.Case).filter(models.Case.id == ev.case_id).first()
+        result.append({
+            "tx_hash": ev.blockchain_tx,
+            "evidence_id": ev.id,
+            "file_hash": ev.file_hash,
+            "logged_by": os.getenv("POLYGON_WALLET_ADDRESS", ""),
+            "block_number": "—",
+            "gas_used": 0,
+            "gas_fee_pol": 0,
+            "title": ev.title,
+            "fir_no": case.fir_no if case else "—",
+            "uploaded_at": ev.uploaded_at.isoformat() if ev.uploaded_at else None,
+            "polygonscan_url": f"https://amoy.polygonscan.com/tx/{ev.blockchain_tx}"
+        })
+    return result
 
 
 @app.get("/api/evidence/{evidence_id}/verify")
 def verify_evidence_integrity(evidence_id: int, db: Session = Depends(get_db)):
-    """Automatically verify evidence integrity by recomputing the SHA-256 hash from the stored record."""
+    """Verify evidence integrity: disk re-hash + on-chain blockchain check."""
+    import glob, hashlib
     ev = db.query(models.Evidence).filter(models.Evidence.id == evidence_id).first()
     if not ev:
-        raise HTTPException(404, "Evidence record not found")
-    
-    # The hash is stored in the database from when the file was uploaded.
-    # In a production system with file storage, we'd re-read the file and recompute.
-    # Since we store the hash at upload time and the DB is append-only (immutable audit),
-    # we verify that the DB record itself hasn't been tampered with.
-    stored_hash = ev.file_hash
-    
-    # Verify the hash is a valid SHA-256 (64 hex characters)
-    if stored_hash and len(stored_hash) == 64 and all(c in '0123456789abcdef' for c in stored_hash):
-        return {
-            "verified": True,
-            "evidence_id": ev.id,
-            "title": ev.title,
-            "stored_hash": stored_hash,
-            "recomputed_hash": stored_hash,
-            "algorithm": "SHA-256",
-            "message": "Evidence integrity verified. The SHA-256 hash on record matches the cryptographic seal."
-        }
+        raise HTTPException(404, "Evidence not found")
+
+    # ── Step 1: Disk re-hash ──────────────────────────────────────────────
+    files = glob.glob(f"uploads/{ev.file_hash}.*")
+    disk_verified = False
+    recomputed_hash = None
+    if files:
+        with open(files[0], "rb") as f:
+            recomputed_hash = hashlib.sha256(f.read()).hexdigest()
+        disk_verified = (recomputed_hash == ev.file_hash)
     else:
-        return {
-            "verified": False,
-            "evidence_id": ev.id,
-            "title": ev.title,
-            "stored_hash": stored_hash,
-            "recomputed_hash": "INVALID",
-            "message": "Hash format is invalid or has been corrupted."
-        }
+        disk_verified = False
+
+    # ── Step 2: Blockchain on-chain check ────────────────────────────────
+    chain_result = verify_evidence_on_chain(ev.id, ev.file_hash)
+
+    return {
+        "verified": disk_verified and chain_result.get("on_chain_match", False),
+        "disk_verified": disk_verified,
+        "on_chain_verified": chain_result.get("on_chain_match", False),
+        "blockchain_enabled": BLOCKCHAIN_ENABLED,
+        "stored_hash": ev.file_hash,
+        "recomputed_hash": recomputed_hash,
+        "blockchain_tx": ev.blockchain_tx,
+        "polygonscan_url": f"https://amoy.polygonscan.com/tx/{ev.blockchain_tx}" if ev.blockchain_tx else None,
+        "evidence_id": ev.id,
+        "title": ev.title
+    }
+
+
 
 from fastapi.responses import StreamingResponse
 import io
@@ -556,15 +625,22 @@ def get_audit_logs(skip: int = 0, limit: int = 200, db: Session = Depends(get_db
 #  HASH VERIFICATION
 # ═══════════════════════════════════════════
 
-@app.post("/api/verify-hash")
-def verify_hash(body: dict, db: Session = Depends(get_db)):
-    h = body.get("hash", "")
-    ev = db.query(models.Evidence).filter(models.Evidence.file_hash == h).first()
-    if ev:
-        return {"verified": True, "evidence_id": ev.id, "title": ev.title, "case_id": ev.case_id}
-    return {"verified": False}
-
-    return {"verified": False}
+@app.get("/api/evidence/{evidence_id}/verify")
+def verify_evidence_integrity(evidence_id: int, db: Session = Depends(get_db)):
+    import os, glob, hashlib
+    ev = db.query(models.Evidence).filter(models.Evidence.id == evidence_id).first()
+    if not ev:
+        raise HTTPException(404, "Evidence not found")
+        
+    files = glob.glob(f"uploads/{ev.file_hash}.*")
+    if not files:
+        return {"verified": False, "recomputed_hash": None, "note": "File missing from disk. Tampering detected!"}
+        
+    with open(files[0], "rb") as f:
+        contents = f.read()
+    recomputed_hash = hashlib.sha256(contents).hexdigest()
+    
+    return {"verified": recomputed_hash == ev.file_hash, "recomputed_hash": recomputed_hash, "stored_hash": ev.file_hash}
 
 # ═══════════════════════════════════════════
 #  PDF REPORT GENERATION
@@ -572,6 +648,16 @@ def verify_hash(body: dict, db: Session = Depends(get_db)):
 
 from fpdf import FPDF
 from fastapi.responses import Response
+
+@app.get("/api/files/{file_hash}")
+def download_file(file_hash: str):
+    import os
+    import glob
+    from fastapi.responses import FileResponse
+    files = glob.glob(f"uploads/{file_hash}.*")
+    if files:
+        return FileResponse(files[0])
+    raise HTTPException(404, "File not found locally")
 
 @app.get("/api/cases/{case_id}/pdf")
 def generate_pdf_report(case_id: int, db: Session = Depends(get_db)):
@@ -615,58 +701,82 @@ def get_legal_sections():
     """Returns authentic BNS (post-2024) and IPC (pre-2024) legal sections."""
     return {
         "post_2024": [
+            {"code": "BNS § 64", "title": "Rape", "category": "Violence"},
+            {"code": "BNS § 65", "title": "Rape under age of 16 years", "category": "Violence"},
+            {"code": "BNS § 69", "title": "Sexual Intercourse by deceitful means", "category": "Violence"},
+            {"code": "BNS § 74", "title": "Assault to Outrage Modesty", "category": "Violence"},
+            {"code": "BNS § 103", "title": "Murder", "category": "Violence"},
+            {"code": "BNS § 105", "title": "Culpable Homicide Not Amounting to Murder", "category": "Violence"},
+            {"code": "BNS § 109", "title": "Attempt to Murder", "category": "Violence"},
             {"code": "BNS § 111", "title": "Organised Crime", "category": "Serious"},
+            {"code": "BNS § 112", "title": "Petty Organised Crime", "category": "Serious"},
+            {"code": "BNS § 113", "title": "Terrorist Act", "category": "Serious"},
             {"code": "BNS § 115(2)", "title": "Voluntarily Causing Hurt", "category": "Violence"},
             {"code": "BNS § 118(1)", "title": "Voluntarily Causing Grievous Hurt", "category": "Violence"},
-            {"code": "BNS § 140", "title": "Kidnapping", "category": "Abduction"},
+            {"code": "BNS § 137", "title": "Kidnapping", "category": "Abduction"},
+            {"code": "BNS § 138", "title": "Abduction", "category": "Abduction"},
+            {"code": "BNS § 140", "title": "Kidnapping or Abducting for Murder", "category": "Abduction"},
+            {"code": "BNS § 150", "title": "Acts endangering sovereignty, unity and integrity of India", "category": "Serious"},
             {"code": "BNS § 191", "title": "Unlawful Assembly", "category": "Public Order"},
+            {"code": "BNS § 193", "title": "Rioting", "category": "Public Order"},
+            {"code": "BNS § 200", "title": "Affray", "category": "Public Order"},
+            {"code": "BNS § 203", "title": "Coining False Currency", "category": "Counterfeit"},
+            {"code": "BNS § 302", "title": "Snatching", "category": "Property"},
             {"code": "BNS § 303(2)", "title": "Theft", "category": "Property"},
             {"code": "BNS § 305", "title": "Theft in Dwelling House", "category": "Property"},
             {"code": "BNS § 308", "title": "Extortion", "category": "Property"},
             {"code": "BNS § 309", "title": "Robbery", "category": "Property"},
-            {"code": "BNS § 316(2)", "title": "Criminal Breach of Trust", "category": "Property"},
-            {"code": "BNS § 318(2)", "title": "Cheating", "category": "Property"},
+            {"code": "BNS § 310", "title": "Dacoity", "category": "Property"},
+            {"code": "BNS § 314", "title": "Criminal Breach of Trust", "category": "Property"},
+            {"code": "BNS § 316", "title": "Cheating", "category": "Property"},
             {"code": "BNS § 318(4)", "title": "Cheating & Dishonestly Inducing", "category": "Property"},
             {"code": "BNS § 329", "title": "Criminal Trespass", "category": "Property"},
             {"code": "BNS § 336", "title": "Forgery", "category": "Document"},
             {"code": "BNS § 340(2)", "title": "Forgery for Purpose of Cheating", "category": "Document"},
             {"code": "BNS § 351(2)", "title": "Criminal Intimidation", "category": "Violence"},
-            {"code": "BNS § 352", "title": "Intentional Insult", "category": "Public Order"},
             {"code": "IT Act § 43", "title": "Penalty for Damage to Computer System", "category": "Cyber"},
             {"code": "IT Act § 65", "title": "Tampering with Computer Source Documents", "category": "Cyber"},
             {"code": "IT Act § 66", "title": "Computer Related Offences", "category": "Cyber"},
-            {"code": "IT Act § 66B", "title": "Dishonestly Receiving Stolen Computer Resource", "category": "Cyber"},
             {"code": "IT Act § 66C", "title": "Identity Theft", "category": "Cyber"},
             {"code": "IT Act § 66D", "title": "Cheating by Personation using Computer", "category": "Cyber"},
             {"code": "IT Act § 66E", "title": "Violation of Privacy", "category": "Cyber"},
             {"code": "IT Act § 66F", "title": "Cyber Terrorism", "category": "Cyber"},
-            {"code": "IT Act § 67", "title": "Publishing Obscene Material Electronically", "category": "Cyber"},
             {"code": "BSA § 63", "title": "Admissibility of Electronic Records", "category": "Evidence"},
             {"code": "BSA § 65B", "title": "Certificate for Electronic Record", "category": "Evidence"},
         ],
         "pre_2024": [
             {"code": "IPC § 120B", "title": "Criminal Conspiracy", "category": "General"},
+            {"code": "IPC § 121", "title": "Waging War against Government", "category": "Serious"},
+            {"code": "IPC § 124A", "title": "Sedition", "category": "Serious"},
             {"code": "IPC § 147", "title": "Rioting", "category": "Public Order"},
+            {"code": "IPC § 159", "title": "Affray", "category": "Public Order"},
+            {"code": "IPC § 231", "title": "Counterfeiting Coin", "category": "Counterfeit"},
+            {"code": "IPC § 295A", "title": "Outraging Religious Feelings", "category": "Public Order"},
             {"code": "IPC § 302", "title": "Murder", "category": "Violence"},
             {"code": "IPC § 304", "title": "Culpable Homicide Not Amounting to Murder", "category": "Violence"},
+            {"code": "IPC § 304B", "title": "Dowry Death", "category": "Violence"},
+            {"code": "IPC § 307", "title": "Attempt to Murder", "category": "Violence"},
             {"code": "IPC § 323", "title": "Voluntarily Causing Hurt", "category": "Violence"},
+            {"code": "IPC § 326", "title": "Grievous Hurt by Dangerous Weapons", "category": "Violence"},
             {"code": "IPC § 354", "title": "Assault on Woman", "category": "Violence"},
+            {"code": "IPC § 354D", "title": "Stalking", "category": "Violence"},
             {"code": "IPC § 363", "title": "Kidnapping", "category": "Abduction"},
             {"code": "IPC § 376", "title": "Rape", "category": "Violence"},
             {"code": "IPC § 379", "title": "Theft", "category": "Property"},
             {"code": "IPC § 384", "title": "Extortion", "category": "Property"},
             {"code": "IPC § 392", "title": "Robbery", "category": "Property"},
+            {"code": "IPC § 395", "title": "Dacoity", "category": "Property"},
             {"code": "IPC § 406", "title": "Criminal Breach of Trust", "category": "Property"},
-            {"code": "IPC § 415", "title": "Cheating", "category": "Property"},
-            {"code": "IPC § 420", "title": "Cheating & Dishonestly Inducing", "category": "Property"},
-            {"code": "IPC § 441", "title": "Criminal Trespass", "category": "Property"},
-            {"code": "IPC § 463", "title": "Forgery", "category": "Document"},
+            {"code": "IPC § 409", "title": "Criminal breach of trust by public servant/banker", "category": "Property"},
+            {"code": "IPC § 411", "title": "Dishonestly Receiving Stolen Property", "category": "Property"},
+            {"code": "IPC § 420", "title": "Cheating and dishonestly inducing delivery of property", "category": "Property"},
+            {"code": "IPC § 465", "title": "Forgery", "category": "Document"},
             {"code": "IPC § 468", "title": "Forgery for Purpose of Cheating", "category": "Document"},
-            {"code": "IPC § 489A", "title": "Counterfeiting Currency Notes", "category": "Document"},
+            {"code": "IPC § 471", "title": "Using as genuine a forged document", "category": "Document"},
+            {"code": "IPC § 489B", "title": "Using as genuine, forged or counterfeit currency", "category": "Counterfeit"},
             {"code": "IPC § 498A", "title": "Cruelty by Husband or Relatives", "category": "Violence"},
-            {"code": "IPC § 504", "title": "Intentional Insult", "category": "Public Order"},
             {"code": "IPC § 506", "title": "Criminal Intimidation", "category": "Violence"},
-            {"code": "IPC § 509", "title": "Word/Gesture Intended to Insult Modesty", "category": "Public Order"},
+            {"code": "IPC § 509", "title": "Word, gesture or act intended to insult modesty", "category": "Violence"},
         ],
     }
 

@@ -16,8 +16,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <h1 className="text-headline-sm text-primary m-0 font-bold leading-tight">Digital Evidence Locker</h1>
           </div>
           <div className="hidden sm:flex flex-col text-right">
-            <p className="text-body-md text-primary font-bold m-0 leading-tight">Government of India 🇮🇳</p>
-            <p className="text-label-caps text-outline font-medium">Judicial Blockchain Network</p>
+            <p className="text-body-md text-primary font-bold m-0 leading-tight">Central Judicial Network</p>
+            <p className="text-label-caps text-outline font-medium">Digital Evidence Framework</p>
           </div>
         </div>
       </div>

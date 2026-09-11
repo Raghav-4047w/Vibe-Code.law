@@ -10,6 +10,8 @@ export default function AuditTrail() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [actionFilter, setActionFilter] = useState("ALL");
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -28,14 +30,37 @@ export default function AuditTrail() {
 
   const handleFilter = () => {
     let result = [...logs];
-    if (dateFrom) result = result.filter(l => new Date(l.timestamp) >= new Date(dateFrom));
-    if (dateTo) result = result.filter(l => new Date(l.timestamp) <= new Date(dateTo + "T23:59:59Z"));
+    if (dateFrom) {
+      result = result.filter(l => {
+        const localDateStr = new Date(l.timestamp).toLocaleDateString('en-CA');
+        return localDateStr >= dateFrom;
+      });
+    }
+    if (dateTo) {
+      result = result.filter(l => {
+        const localDateStr = new Date(l.timestamp).toLocaleDateString('en-CA');
+        return localDateStr <= dateTo;
+      });
+    }
+    if (actionFilter !== "ALL") result = result.filter(l => l.action.includes(actionFilter));
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(l => {
+        const userName = (l.user?.name || "System").toLowerCase();
+        const badge = (l.user?.badge_id || "").toLowerCase();
+        const role = (l.user?.role || "").toLowerCase();
+        const details = (l.details || "").toLowerCase();
+        return userName.includes(q) || badge.includes(q) || role.includes(q) || details.includes(q);
+      });
+    }
     setFilteredLogs(result);
   };
 
   const handleReset = () => {
     setDateFrom("");
     setDateTo("");
+    setSearchQuery("");
+    setActionFilter("ALL");
     setFilteredLogs(logs);
   };
 
@@ -92,6 +117,8 @@ export default function AuditTrail() {
     document.body.removeChild(link);
   };
 
+  const actionsList = ["ALL", "REGISTER", "UPLOAD", "VIEW", "SEAL", "LOGIN", "DRAFT"];
+
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
       {/* Top Banner */}
@@ -126,45 +153,73 @@ export default function AuditTrail() {
         </div>
       </div>
 
-      {/* Date Filter Bar */}
-      <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/30 px-6 py-4 flex flex-wrap items-center gap-4">
-        <span className="text-[11px] font-bold text-outline uppercase tracking-widest">Filter by Date Range</span>
-        <div className="flex items-center gap-2">
-          <label className="text-[11px] text-primary font-bold">From</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="border border-outline-variant/50 rounded-lg px-3 py-1.5 text-[12px] text-primary focus:outline-none focus:border-primary"
-          />
+      {/* Advanced Filter Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/30 px-6 py-5 flex flex-col gap-4">
+        
+        <div className="flex flex-wrap items-center gap-4">
+          
+          <div className="flex-1 min-w-[200px] flex items-center gap-2 border border-outline-variant/50 rounded-lg px-3 py-1.5 focus-within:border-primary">
+            <input
+              type="text"
+              placeholder="Search by Officer Name, ID, Role or Details..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-[13px] text-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-primary font-bold">Action</label>
+            <select
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+              className="border border-outline-variant/50 rounded-lg px-3 py-1.5 text-[12px] text-primary focus:outline-none focus:border-primary bg-transparent"
+            >
+              {actionsList.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-outline-variant/30 pl-4">
+            <label className="text-[11px] text-primary font-bold">From</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border border-outline-variant/50 rounded-lg px-3 py-1.5 text-[12px] text-primary focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-primary font-bold">To</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border border-outline-variant/50 rounded-lg px-3 py-1.5 text-[12px] text-primary focus:outline-none focus:border-primary"
+            />
+          </div>
+
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[11px] text-primary font-bold">To</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="border border-outline-variant/50 rounded-lg px-3 py-1.5 text-[12px] text-primary focus:outline-none focus:border-primary"
-          />
+
+        <div className="flex items-center gap-3 border-t border-outline-variant/30 pt-4">
+          <button
+            onClick={handleFilter}
+            className="bg-primary text-white text-[12px] font-bold px-6 py-2 rounded-lg hover:bg-[#101B31] transition-colors"
+          >
+            Apply Filters
+          </button>
+          <button
+            onClick={handleReset}
+            className="bg-surface border border-outline-variant/30 text-primary text-[12px] font-bold px-6 py-2 rounded-lg hover:bg-surface-container transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            onClick={exportToCSV}
+            className="ml-auto text-label-md text-primary font-bold flex items-center gap-2 hover:bg-surface-container px-4 py-2 rounded-lg border border-outline-variant/30 transition-colors"
+          >
+            <Download size={14} /> Download CSV
+          </button>
         </div>
-        <button
-          onClick={handleFilter}
-          className="bg-primary text-white text-[12px] font-bold px-4 py-1.5 rounded-lg hover:bg-[#101B31] transition-colors"
-        >
-          View Logs
-        </button>
-        <button
-          onClick={handleReset}
-          className="bg-surface border border-outline-variant/30 text-primary text-[12px] font-bold px-4 py-1.5 rounded-lg hover:bg-surface-container transition-colors"
-        >
-          Reset
-        </button>
-        <button
-          onClick={exportToCSV}
-          className="ml-auto text-label-md text-primary font-bold flex items-center gap-2 hover:bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant/30 transition-colors"
-        >
-          <Download size={14} /> Download CSV
-        </button>
       </div>
 
       {/* Table Container */}

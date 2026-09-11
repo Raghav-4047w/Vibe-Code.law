@@ -60,70 +60,55 @@ export default function Dashboard() {
                <div className="flex items-center gap-1.5 text-label-caps text-outline mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-secondary"></div> INVESTIGATING
                </div>
-               <p className="text-headline-md text-secondary m-0">{cases.filter(c => !c.is_sealed).length}</p>
+               <p className="text-headline-md text-secondary m-0">{cases.filter(c => c.status === "Under Investigation" || !c.is_sealed).length}</p>
                <p className="text-[10px] text-outline">Active Seizures</p>
              </div>
              <div>
                <div className="flex items-center gap-1.5 text-label-caps text-outline mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> FILED
                </div>
-               <p className="text-headline-md text-primary m-0">{cases.filter(c => c.is_sealed).length}</p>
+               <p className="text-headline-md text-primary m-0">{cases.filter(c => c.status === "Chargesheet Filed" || c.is_sealed).length}</p>
                <p className="text-[10px] text-outline">Sec 173 Dossiers</p>
              </div>
              <div>
                <div className="flex items-center gap-1.5 text-label-caps text-outline mb-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-outline"></div> DISPOSED
+                 <div className="w-1.5 h-1.5 rounded-full bg-error"></div> SEALED
                </div>
-               <p className="text-headline-md text-primary m-0">0</p>
-               <p className="text-[10px] text-outline">Court Verdicts</p>
-             </div>
-             <div>
-               <div className="flex items-center gap-1.5 text-label-caps text-error mb-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-error"></div>
-               </div>
-               <p className="text-headline-md text-error m-0">0</p>
+               <p className="text-headline-md text-primary m-0">{cases.filter(c => c.status === "Sealed").length}</p>
                <p className="text-[10px] text-outline">Immutable Vault</p>
              </div>
            </div>
         </div>
 
-        {/* Audit Quick Link */}
-        <Link href="/audit" className="bg-white rounded-xl p-4 shadow-sm border border-outline-variant/30 flex items-center justify-between hover:bg-surface-container-low transition-colors group">
-          <div className="flex items-center gap-3">
-            <div className="bg-surface-container w-10 h-10 rounded-lg flex items-center justify-center text-primary"><ShieldCheck size={18}/></div>
-            <div>
-               <p className="text-label-md text-primary font-bold">Audit Trail</p>
-               <p className="text-label-caps text-outline mt-0.5">FULL LOG</p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-outline group-hover:text-primary transition-colors" />
-        </Link>
-
-        {/* Global Blockchain Status */}
-        <div className="bg-surface rounded-xl p-4 border border-outline-variant/20">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5"><CheckCircle2 className="text-secondary" size={16} /></div>
-            <div>
-              <p className="text-label-md text-primary font-bold leading-tight">System Initialization</p>
-              <p className="text-[11px] text-outline mt-0.5">Blockchain Active</p>
-            </div>
-          </div>
-        </div>
-
         {/* Register Case Action - Only for IO */}
         {userRole === "Officer" && (
-          <Link href="/case/new" className="mt-4 bg-primary hover:bg-[#101B31] text-white rounded-[16px] p-4 flex items-center justify-between group transition-colors shadow-sm cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shadow-inner">
-                <Plus size={20} className="text-white" />
+          <div className="flex flex-col gap-3 mt-4">
+            <Link href="/case/new" className="bg-primary hover:bg-[#101B31] text-white rounded-[16px] p-4 flex items-center justify-between group transition-colors shadow-sm cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shadow-inner">
+                  <Plus size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-label-md font-bold mb-0.5">Register New Case</p>
+                  <p className="text-[11px] text-primary-fixed-dim m-0">Initiate Dossier (IO Exclusive)</p>
+                </div>
               </div>
-              <div>
-                <p className="text-label-md font-bold mb-0.5">Register New Case</p>
-                <p className="text-[11px] text-primary-fixed-dim m-0">Initiate Dossier (IO Exclusive)</p>
+              <ChevronRight size={20} className="text-primary-fixed-dim group-hover:translate-x-1 transition-transform" />
+            </Link>
+
+            <Link href="/drafts" className="bg-surface-container-low hover:bg-surface-container text-primary border border-outline-variant/50 rounded-[16px] p-4 flex items-center justify-between group transition-colors shadow-sm cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <p className="text-label-md font-bold mb-0.5">Saved Drafts</p>
+                  <p className="text-[11px] text-outline m-0">View Incomplete Case Registrations</p>
+                </div>
               </div>
-            </div>
-            <ChevronRight size={20} className="text-primary-fixed-dim group-hover:translate-x-1 transition-transform" />
-          </Link>
+              <ChevronRight size={20} className="text-outline group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
         )}
       </div>
 

@@ -43,6 +43,7 @@ export default function Navbar() {
   const tabs = [
     { label: "Case Repository", href: "/", match: (p: string | null) => p === "/" || (p?.startsWith("/case") && !p?.startsWith("/case/new")) },
     { label: "Audit Trail", href: "/audit", match: (p: string | null) => p?.startsWith("/audit") },
+    { label: "⛓ Blockchain Ledger", href: "/blockchain", match: (p: string | null) => p?.startsWith("/blockchain") },
   ];
 
   return (

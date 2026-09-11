@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, IdCard, KeyRound, Eye, EyeOff, Gavel, Loader2 } from "lucide-react";
+import { Shield, IdCard, KeyRound, Eye, EyeOff, Gavel, Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
@@ -103,11 +103,16 @@ export default function LoginPage() {
              </span>
            </div>
            
-           <div className="bg-surface-container w-16 h-16 rounded-2xl flex items-center justify-center mb-6 relative">
-             <Shield className="text-primary" size={32} />
+           <div className="bg-gradient-to-br from-primary to-secondary w-20 h-20 rounded-2xl flex items-center justify-center mb-8 relative shadow-lg transform hover:scale-105 transition-transform duration-300">
+             <Shield className="text-white" size={40} />
+             <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-sm">
+               <Lock size={14} className="text-primary" />
+             </div>
            </div>
-           <h2 className="text-headline-md text-primary font-bold mb-2">{isForgotPassword ? "Account Recovery" : "Secure Legal Login"}</h2>
-           <p className="text-[12px] text-outline leading-relaxed mb-6">
+           <h2 className="text-headline-lg text-primary font-black tracking-tight mb-3 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+             {isForgotPassword ? "Account Recovery" : "Secure Legal Login"}
+           </h2>
+           <p className="text-[13px] text-outline leading-relaxed mb-8">
              Authenticate to access the tamper-proof evidentiary repository governed by Bharatiya Sakshya Adhiniyam, 2023.
            </p>
 

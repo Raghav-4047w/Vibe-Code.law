@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Scale, FileText, Download, UploadCloud, Lock, CheckCircle2, AlertTriangle, ShieldCheck, HardDrive, ChevronDown, ChevronRight, User, Search, Database, Loader2, Info } from "lucide-react";
+import { Scale, FileText, Download, UploadCloud, Lock, CheckCircle2, AlertTriangle, ShieldCheck, HardDrive, ChevronDown, ChevronRight, User, Search, Database, Loader2, Info, Calendar } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -88,43 +88,45 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
     }
   };
 
-  const [evFile, setEvFile] = useState<File | null>(null);
+  const [evFiles, setEvFiles] = useState<File[]>([]);
 
   const handleUploadEvidence = async () => {
-    if (!evTitle || !evConfirmed || !evFile) {
-      alert("Please provide a Document Title, attach a file, and check the confirmation box.");
+    if (!evTitle || !evConfirmed || evFiles.length === 0) {
+      alert("Please provide a Document Title, attach file(s), and check the confirmation box.");
       return;
     }
 
     setIsUploading(true);
-    setUploadStep("Generating SHA-256 cryptographic hash...");
+    
     try {
-      const formData = new FormData();
-      formData.append("title", evTitle);
-      formData.append("type", evType);
-      formData.append("uploaded_by", userName);
-      formData.append("file", evFile);
+      for (let i = 0; i < evFiles.length; i++) {
+        const file = evFiles[i];
+        setUploadStep(`Processing file ${i+1}/${evFiles.length}: ${file.name}...`);
+        
+        const formData = new FormData();
+        formData.append("title", evFiles.length > 1 ? `${evTitle} - ${file.name}` : evTitle);
+        formData.append("type", evType);
+        formData.append("uploaded_by", userName);
+        formData.append("file", file);
 
-      setUploadStep("Uploading evidence to secure vault...");
-      await new Promise(r => setTimeout(r, 800));
-      setUploadStep("Running Tesseract OCR scan on document...");
-      await new Promise(r => setTimeout(r, 600));
-      setUploadStep("Performing NLP entity extraction & analysis...");
-      
-      await axios.post(`http://localhost:8000/api/cases/${params.id}/evidence`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+        await new Promise(r => setTimeout(r, 800));
+        setUploadStep(`File ${i+1}/${evFiles.length}: Running Gemini Vision AI Analysis...`);
+        
+        await axios.post(`http://localhost:8000/api/cases/${params.id}/evidence`, formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+      }
       
       setUploadStep("Sealing evidence on immutable ledger...");
       await new Promise(r => setTimeout(r, 500));
       
-      alert("Evidence uploaded and cryptographically sealed.");
+      alert(`Successfully uploaded and sealed ${evFiles.length} evidence artifact(s).`);
       setEvTitle("");
       setEvConfirmed(false);
-      setEvFile(null);
+      setEvFiles([]);
       await fetchEvidence();
     } catch (err) {
-      alert("Failed to upload evidence.");
+      alert("Failed to upload one or more evidence files.");
     } finally {
       setIsUploading(false);
       setUploadStep("");
@@ -408,15 +410,19 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-primary mb-1">Attach Digital Artifact</label>
+                      <label className="block text-[11px] font-bold text-primary mb-1">Attach Digital Artifact(s)</label>
                       <label className="border border-dashed border-outline-variant rounded-lg p-5 text-center bg-[#F0F3FF]/30 hover:bg-[#F0F3FF] transition-colors cursor-pointer block relative">
-                        <input type="file" accept="application/pdf,image/png,image/jpeg,image/jpg,.raw,.e01,.mp4,.pcap" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setEvFile(e.target.files?.[0] || null)} />
-                        <FileText size={20} className={`mx-auto mb-2 ${evFile ? 'text-[#0D7A5F]' : 'text-[#92400E]'}`} />
-                        <p className={`text-[12px] font-bold mb-0.5 ${evFile ? 'text-[#0D7A5F]' : 'text-primary'}`}>
-                          {evFile ? evFile.name : "Click to browse or drag evidence file"}
+                        <input type="file" multiple accept="application/pdf,image/png,image/jpeg,image/jpg,.raw,.e01,.mp4,.pcap" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => {
+                            if (e.target.files) {
+                                setEvFiles(Array.from(e.target.files));
+                            }
+                        }} />
+                        <FileText size={20} className={`mx-auto mb-2 ${evFiles.length > 0 ? 'text-[#0D7A5F]' : 'text-[#92400E]'}`} />
+                        <p className={`text-[12px] font-bold mb-0.5 ${evFiles.length > 0 ? 'text-[#0D7A5F]' : 'text-primary'}`}>
+                          {evFiles.length > 0 ? `${evFiles.length} file(s) selected` : "Click to browse or drag evidence files"}
                         </p>
                         <p className="text-[10px] text-outline">
-                          {evFile ? `${(evFile.size / 1024).toFixed(1)} KB` : "Allowed formats: .PDF, .RAW, .E01, .MP4, .PCAP"}
+                          {evFiles.length > 0 ? evFiles.map(f => f.name).join(", ") : "Allowed formats: .PDF, .RAW, .E01, .MP4, .PCAP"}
                         </p>
                       </label>
                     </div>
@@ -504,7 +510,7 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                           </span>
                           {ev.type} — {ev.title}
                         </h4>
-                        <p className="text-[11px] text-outline font-mono">{ev.file_hash.substring(0, 32)}... • Size: {ev.size}</p>
+                        <p className="text-[11px] text-outline font-mono">Size: {ev.size}</p>
                       </div>
                     </div>
 
@@ -513,21 +519,36 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                          onClick={async () => {
                            try {
                              const res = await axios.get(`http://localhost:8000/api/evidence/${ev.id}/verify`);
-                             if (res.data.verified) {
-                               alert(`✅ INTEGRITY VERIFIED\n\nStored SHA-256: ${ev.file_hash.substring(0,32)}...\nRecomputed SHA-256: ${res.data.recomputed_hash.substring(0,32)}...\n\nThe evidence record is intact and has NOT been tampered with.`);
-                             } else {
-                               alert(`❌ INTEGRITY COMPROMISED!\n\nStored: ${ev.file_hash.substring(0,16)}...\nRecomputed: ${res.data.recomputed_hash.substring(0,16)}...\n\nThe evidence file has been altered!`);
-                             }
+                             const d = res.data;
+                             const diskOk = d.disk_verified ? "✅ PASS" : "❌ FAIL";
+                             const chainOk = d.on_chain_verified ? "✅ PASS" : (d.blockchain_tx ? "❌ FAIL" : "⏳ Not yet logged");
+                             const overall = d.verified ? "✅ FULLY VERIFIED — Evidence is UNTAMPERED" : "❌ INTEGRITY COMPROMISED — TAMPERING DETECTED!";
+                             alert(`${overall}\n\n📁 Disk Hash Check: ${diskOk}\n⛓️  Blockchain (Polygon Amoy): ${chainOk}\n\nStored Hash:\n${d.stored_hash}\n\nRecomputed Hash:\n${d.recomputed_hash || "N/A"}`);
                            } catch (err: any) {
-                             alert("Verification: " + (err.response?.data?.detail || "Hash verified against stored record."));
+                             alert("Verification failed: " + (err.response?.data?.detail || "Could not verify"));
                            }
                          }}
                          className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] border border-outline-variant/50 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary transition-colors cursor-pointer"
                        >
                          <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-[#0D7A5F]"/> Verify Integrity</div>
                        </button>
-                       <button className="flex items-center justify-between xl:justify-start gap-2 bg-[#FFF8ED] hover:bg-[#FFF8ED]/80 border border-[#FCD34D] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[#92400E] transition-colors">
-                         <div className="flex items-center gap-1.5"><HardDrive size={12}/> Polygonscan</div>
+
+                       <button 
+                         onClick={() => window.open(`http://localhost:8000/api/files/${ev.file_hash}`, "_blank")}
+                         className="flex items-center justify-between xl:justify-start gap-2 bg-[#F0FFF4] hover:bg-[#E6F4EA] border border-[#A8DAB5] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[#0D7A5F] transition-colors cursor-pointer"
+                       >
+                         <div className="flex items-center gap-1.5"><FileText size={12}/> View Uploaded File</div>
+                       </button>
+
+                       <button 
+                         onClick={() => {
+                           const txUrl = ev.blockchain_tx ? `https://amoy.polygonscan.com/tx/${ev.blockchain_tx}` : null;
+                           if (txUrl) window.open(txUrl, "_blank");
+                           else alert("⏳ Blockchain TX not yet recorded for this evidence.\n\nThis happens if upload was before blockchain was enabled, or if the transaction is still pending.");
+                         }}
+                         className={`flex items-center justify-between xl:justify-start gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer border ${ev.blockchain_tx ? 'bg-[#FFF8ED] hover:bg-[#FFF0D4] border-[#FCD34D] text-[#92400E]' : 'bg-surface border-outline-variant/30 text-outline opacity-60'}`}
+                       >
+                         <div className="flex items-center gap-1.5"><HardDrive size={12}/> {ev.blockchain_tx ? "View on Polygonscan ↗" : "Polygonscan (Pending)"}</div>
                        </button>
                     </div>
                   </div>
@@ -536,45 +557,165 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                   <div className="mt-4 flex flex-col gap-2">
                     
                     {/* Gemini Analysis Accordion */}
-                    <details open className="group bg-[#FFF8ED]/50 border border-[#FCD34D]/50 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                    <details open={isLatest} className="group bg-[#E6F4EA]/30 border border-[#0D7A5F]/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
                       <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
                         <div className="flex items-center gap-2">
-                           <ShieldCheck size={14} className="text-[#92400E]" />
-                           <span className="text-[12px] font-bold text-primary">NLP Document Analysis</span>
-                           <span className="text-[9px] font-bold uppercase tracking-widest text-[#92400E] bg-[#FCD34D]/30 px-2 py-0.5 rounded">Auto-Generated • SpaCy NLP Engine</span>
+                           <ShieldCheck size={14} className="text-[#0D7A5F]" />
+                           <span className="text-[12px] font-bold text-primary">AI Document Analysis</span>
+                           <span className="text-[9px] font-bold uppercase tracking-widest text-[#0D7A5F] bg-[#0D7A5F]/10 px-2 py-0.5 rounded">Auto-Generated</span>
                         </div>
                         <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
                       </summary>
-                      <div className="p-4 pt-1 border-t border-[#FCD34D]/30 bg-white/50 text-[11px] text-primary leading-relaxed">
-                        {ev.ai_analysis || "No AI analysis available for this document yet. Click 'Analyze with Gemini' to generate."}
+                      <div className="p-4 pt-2 border-t border-[#0D7A5F]/20 bg-white/60">
+                        {(() => {
+                           try {
+                             const data = JSON.parse(ev.ai_analysis);
+                             if (data.summary.includes("processing in progress")) {
+                               return <div className="text-[11px] text-[#92400E] font-bold whitespace-pre-wrap flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> {data.summary}</div>;
+                             }
+                             return (
+                               <div className="flex flex-col gap-4">
+                                 <div>
+                                   <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-1.5">Executive Summary</p>
+                                   <p className="text-[12px] text-primary leading-relaxed bg-[#F0F3FF]/50 p-2.5 rounded-lg border border-outline-variant/30 italic">{data.summary}</p>
+                                 </div>
+                                 <div>
+                                   <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-2">Extracted Entities</p>
+                                   <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                                     <div>
+                                        <p className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1"><User size={10}/> People</p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {data.entities?.persons?.length > 0 ? data.entities.persons.map((p:string, i:number) => <span key={i} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">{p}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                        </div>
+                                     </div>
+                                     <div>
+                                        <p className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1"><Database size={10}/> Organizations</p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {data.entities?.orgs?.length > 0 ? data.entities.orgs.map((o:string, i:number) => <span key={i} className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{o}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                        </div>
+                                     </div>
+                                     <div>
+                                        <p className="text-[10px] font-bold text-primary mb-1">📍 Locations</p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {data.entities?.locations?.length > 0 ? data.entities.locations.map((l:string, i:number) => <span key={i} className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-100">{l}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                        </div>
+                                     </div>
+                                     <div>
+                                        <p className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1"><Calendar size={10}/> Dates</p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {data.entities?.dates?.length > 0 ? data.entities.dates.map((d:string, i:number) => <span key={i} className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-100">{d}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                        </div>
+                                     </div>
+                                   </div>
+                                 </div>
+                               </div>
+                             );
+                           } catch(e: any) {
+                             // Try to sanitize the string if JSON.parse failed due to unescaped newlines
+                             try {
+                               let sanitized = ev.ai_analysis;
+                               // If it has markdown json block, extract it
+                               const match = sanitized.match(/\{[\s\S]*\}/);
+                               if (match) sanitized = match[0];
+                               // Escape literal newlines so JSON.parse won't crash
+                               sanitized = sanitized.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+                               const data = JSON.parse(sanitized);
+                               return (
+                                 <div className="flex flex-col gap-4">
+                                   <div>
+                                     <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-1.5">Executive Summary</p>
+                                     <p className="text-[12px] text-primary leading-relaxed bg-[#F0F3FF]/50 p-2.5 rounded-lg border border-outline-variant/30 italic">{data.summary}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-2">Extracted Entities</p>
+                                     <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                                       <div>
+                                          <p className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1"><User size={10}/> People</p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {data.entities?.persons?.length > 0 ? data.entities.persons.map((p:string, i:number) => <span key={i} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">{p}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                          </div>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1"><Database size={10}/> Organizations</p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {data.entities?.orgs?.length > 0 ? data.entities.orgs.map((o:string, i:number) => <span key={i} className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{o}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                          </div>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] font-bold text-primary mb-1">📍 Locations</p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {data.entities?.locations?.length > 0 ? data.entities.locations.map((l:string, i:number) => <span key={i} className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-100">{l}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                          </div>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1"><Calendar size={10}/> Dates</p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {data.entities?.dates?.length > 0 ? data.entities.dates.map((d:string, i:number) => <span key={i} className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-100">{d}</span>) : <span className="text-[10px] text-outline">None</span>}
+                                          </div>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 </div>
+                               );
+                             } catch(innerE) {
+                               console.error("Failed to parse AI Analysis JSON even after sanitize:", innerE, ev.ai_analysis);
+                               return <div className="text-[11px] text-primary whitespace-pre-wrap leading-relaxed"><strong>Parsing Error:</strong><br/>{ev.ai_analysis || "No AI analysis available."}</div>;
+                             }
+                           }
+                        })()}
                       </div>
                     </details>
 
                     {/* OCR Scan Accordion */}
-                    <details open className="group bg-surface-container-low border border-outline-variant/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-                      <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
+                    <details className="group bg-surface-container-low border border-outline-variant/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                      <summary className="flex items-center justify-between p-3 cursor-pointer select-none hover:bg-surface-container/50 transition-colors">
                         <div className="flex items-center gap-2">
                            <FileText size={14} className="text-primary" />
-                           <span className="text-[12px] font-bold text-primary">AI OCR Scan - Extracted Text</span>
+                           <span className="text-[12px] font-bold text-primary">Raw Extracted Text (OCR)</span>
+                           <span className="text-[9px] text-outline ml-2 px-2 py-0.5 border border-outline-variant rounded-full">For indexing/search</span>
                         </div>
                         <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
                       </summary>
-                      <div className="p-4 pt-1 border-t border-outline-variant/30 bg-white/50 text-[11px] text-outline font-mono leading-relaxed whitespace-pre-wrap">
-                        {ev.ocr_text || "No OCR text extracted."}
+                      <div className="p-4 pt-1 border-t border-outline-variant/30 bg-white/50">
+                         <div className="text-[10px] text-outline italic mb-2">Note: Full document can be viewed via the 'View Uploaded File' button above. Below is the raw data used by the AI.</div>
+                         <div className="bg-[#1E1E1E] text-[#D4D4D4] p-4 rounded-lg text-[11px] font-mono leading-relaxed whitespace-pre-wrap max-h-[250px] overflow-y-auto overflow-x-hidden shadow-inner select-text scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                           {ev.ocr_text || "No OCR text extracted."}
+                         </div>
                       </div>
                     </details>
 
                     {/* Images Accordion */}
-                    <details className="group bg-surface-container-low border border-outline-variant/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                    <details open={isLatest} className="group bg-surface-container-low border border-outline-variant/30 rounded-lg overflow-hidden [&_summary::-webkit-details-marker]:hidden">
                       <summary className="flex items-center justify-between p-3 cursor-pointer select-none">
                         <div className="flex items-center gap-2">
                            <Search size={14} className="text-primary" />
-                           <span className="text-[12px] font-bold text-primary">Extracted Images & Seizure Panchnama Photos</span>
+                           <span className="text-[12px] font-bold text-primary">Extracted Images & Photos</span>
                         </div>
                         <ChevronDown size={14} className="text-outline group-open:rotate-180 transition-transform" />
                       </summary>
-                      <div className="p-4 pt-1 border-t border-outline-variant/30 bg-white/50 text-[11px] text-outline italic">
-                        No images found in this document.
+                      <div className="p-4 pt-3 border-t border-outline-variant/30 bg-white/50">
+                        {(() => {
+                           try {
+                             const data = JSON.parse(ev.ai_analysis);
+                             if (data.images && data.images.length > 0) {
+                               return (
+                                 <div className="flex flex-wrap gap-3">
+                                   {data.images.map((img: string, idx: number) => {
+                                      const hashOnly = img.split('.')[0];
+                                      return (
+                                        <a key={idx} href={`http://localhost:8000/api/files/${hashOnly}`} target="_blank" rel="noreferrer" className="block border border-outline-variant/50 rounded overflow-hidden shadow-sm hover:border-primary transition-colors bg-white p-1">
+                                          <img src={`http://localhost:8000/api/files/${hashOnly}`} alt="Extracted Evidence" className="h-28 w-auto object-cover rounded-sm" />
+                                        </a>
+                                      );
+                                   })}
+                                 </div>
+                               );
+                             }
+                             return <div className="text-[11px] text-outline italic">No images found in this document.</div>;
+                           } catch(e) {
+                             return <div className="text-[11px] text-outline italic">No images found or legacy format.</div>;
+                           }
+                        })()}
                       </div>
                     </details>
 
@@ -596,8 +737,8 @@ export default function CaseDossier({ params }: { params: { id: string } }) {
                        </div>
                        <div className={`p-3 rounded-lg text-[12px] border ${isLatest ? 'bg-[#F0FFF4] text-[#0D7A5F] border-[#0D7A5F]/20' : 'bg-surface text-outline border-outline-variant/30'}`}>
                          {isLatest 
-                           ? `Current active version. Cryptographic hash: ${ev.file_hash.substring(0, 24)}...`
-                           : `This version has been superseded by v${versionNum + 1}. Hash preserved for audit trail.`
+                           ? `Current active version. Securely archived.`
+                           : `This version has been superseded by v${versionNum + 1}. Securely preserved for audit trail.`
                          }
                        </div>
                     </div>
