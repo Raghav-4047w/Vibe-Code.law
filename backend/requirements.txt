@@ -13,3 +13,4 @@ spacy
 sumy
 requests
 pillow
+fpdf
