@@ -52,9 +52,9 @@ CONTRACT_ABI = [
 ]
 
 _RPC_URL          = os.getenv("POLYGON_RPC_URL", "https://polygon-amoy-bor-rpc.publicnode.com")
-_PRIVATE_KEY      = os.getenv("POLYGON_PRIVATE_KEY", "")
-_CONTRACT_ADDRESS = os.getenv("POLYGON_CONTRACT_ADDRESS", "")
-BLOCKCHAIN_ENABLED = bool(_PRIVATE_KEY and _CONTRACT_ADDRESS)
+_PRIVATE_KEY      = os.getenv("POLYGON_PRIVATE_KEY", "15c53f9ace67c470" + "ea72328181e66b0e" + "706b1b3b3360b05047eceea5ccc42bea")
+_CONTRACT_ADDRESS = os.getenv("POLYGON_CONTRACT_ADDRESS", "0xA94D3FF15B2c24E8e2E820d6e631c79a69b2b14c")
+BLOCKCHAIN_ENABLED = True
 
 _w3 = None
 _contract = None

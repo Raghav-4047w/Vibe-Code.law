@@ -478,7 +478,7 @@ def upload_evidence(case_id: int, background_tasks: BackgroundTasks, title: str 
         print(f"[WARN] AI processing failed (non-fatal): {ai_err}")
         # Update with a graceful fallback message
         try:
-            ev.ocr_text = "AI processing unavailable on this deployment."
+            ev.ocr_text = f"AI processing unavailable: {str(ai_err)}"
             ev.ai_analysis = "Manual review required."
             db.commit()
             db.refresh(ev)
