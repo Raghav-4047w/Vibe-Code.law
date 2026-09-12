@@ -78,7 +78,7 @@ def _get_contract():
     return _contract
 
 
-def get_evidence_events(last_n_blocks: int = 9999) -> list:
+def get_evidence_events(last_n_blocks: int = 40000) -> list:
     """Fetch all EvidenceLogged events from the contract in the last N blocks."""
     if not BLOCKCHAIN_ENABLED:
         return []
@@ -86,7 +86,7 @@ def get_evidence_events(last_n_blocks: int = 9999) -> list:
         w3 = _get_w3()
         contract = _get_contract()
         latest = w3.eth.block_number
-        from_block = max(0, latest - last_n_blocks)
+        from_block = 114730000
         events = contract.events.EvidenceLogged.get_logs(from_block=from_block, to_block=latest)
         result = []
         for e in events:
