@@ -46,7 +46,7 @@ export default function LoginPage() {
 
     try {
       const res = await axios.post("/api/auth/login", {
-        badge_id: badgeId,
+        badge_id: badgeId.trim(),
         password: password,
         role: role,
       });
